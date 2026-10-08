@@ -6,5 +6,5 @@ import { requireAuth } from "@/lib/auth/session";
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   await connection();
   const { user } = await requireAuth();
-  return <DashboardShell role={user.role}>{children}</DashboardShell>;
+  return <DashboardShell user={user}>{children}</DashboardShell>;
 }
