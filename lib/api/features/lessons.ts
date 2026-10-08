@@ -13,6 +13,7 @@ export function createLessonsApi(request: ApiTransport) {
     list: (courseId: string) => request<LessonDto[]>(`/courses/${courseId}/lessons`),
     get: (lessonId: string) => request<LessonDto>(`/lessons/${lessonId}`),
     update: (lessonId: string, body: UpdateLessonRequest) => request<LessonDto>(`/lessons/${lessonId}`, { method: "PUT", body }),
+    reorder: (courseId: string, lessonIds: string[]) => request<LessonDto[]>(`/courses/${courseId}/lessons/reorder`, { method: "PUT", body: { lessonIds } }),
     remove: (lessonId: string) => request<void>(`/lessons/${lessonId}`, { method: "DELETE" }),
     listMaterials: (lessonId: string) => request<MaterialDto[]>(`/lessons/${lessonId}/materials`),
     uploadMaterial: (lessonId: string, file: File) => request<MaterialDto>(`/lessons/${lessonId}/materials`, { method: "POST", body: fileBody(file) }),
