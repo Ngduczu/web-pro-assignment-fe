@@ -1,5 +1,5 @@
 import type { ApiTransport } from "@/lib/api/transport";
-import type { CreateExaminationRequest, ExaminationAttemptDto, ExaminationDto, ExaminationSubmitReason, ExaminationViolationType, StudentAnswerDto, StudentExamQuestionDto, StudentExaminationDto, StudentFillInBlankAnswerInput, UpdateExaminationRequest } from "@/types/api";
+import type { CreateExaminationRequest, ExaminationAttemptDto, ExaminationAttemptQuery, ExaminationAttemptResultDto, ExaminationDto, ExaminationSubmitReason, ExaminationViolationType, PaginatedResponse, StudentAnswerDto, StudentExamQuestionDto, StudentExaminationDto, StudentFillInBlankAnswerInput, UpdateExaminationRequest } from "@/types/api";
 
 export function createExaminationsApi(request: ApiTransport) {
   return {
@@ -12,6 +12,7 @@ export function createExaminationsApi(request: ApiTransport) {
     publish: (examinationId: string) => request<ExaminationDto>(`/examinations/${examinationId}/publish`, { method: "POST" }),
     close: (examinationId: string) => request<ExaminationDto>(`/examinations/${examinationId}/close`, { method: "POST" }),
     getMyAttempt: (examinationId: string) => request<ExaminationAttemptDto>(`/examinations/${examinationId}/my-attempt`),
+    listAttempts: (examinationId: string, query?: ExaminationAttemptQuery) => request<PaginatedResponse<ExaminationAttemptResultDto>>(`/examinations/${examinationId}/attempts`, { query }),
     startAttempt: (examinationId: string) => request<ExaminationAttemptDto>(`/examination-attempts/${examinationId}/start`, { method: "POST" }),
     getQuestions: (attemptId: string) => request<StudentExamQuestionDto[]>(`/examination-attempts/${attemptId}/questions`),
     saveMultipleChoice: (attemptId: string, questionId: string, selectedOptionId: string) => request<StudentAnswerDto>(`/examination-attempts/${attemptId}/questions/${questionId}/multiple-choice`, { method: "PUT", query: { selectedOptionId } }),
