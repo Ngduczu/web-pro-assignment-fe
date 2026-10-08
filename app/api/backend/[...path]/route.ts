@@ -15,6 +15,8 @@ async function proxy(request: Request, context: RouteContext) {
   const headers = new Headers();
   const contentType = request.headers.get("content-type");
   if (contentType) headers.set("Content-Type", contentType);
+  const cookie = request.headers.get("cookie");
+  if (cookie) headers.set("Cookie", cookie);
   const rawBody = method === "GET" ? undefined : await request.arrayBuffer();
   const response = await serverBackendRequest(backendPath, { method, headers, rawBody });
   const responseHeaders = new Headers();
