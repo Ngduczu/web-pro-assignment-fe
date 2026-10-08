@@ -7,6 +7,7 @@ import { useState } from "react";
 import { authSessionApi } from "@/lib/api/auth-session-client";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useLanguage } from "@/lib/i18n";
 
 type UserMenuProps = {
   name: string;
@@ -17,6 +18,7 @@ type UserMenuProps = {
 export function UserMenu({ name, email, role }: UserMenuProps) {
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const { t } = useLanguage();
 
   async function signOut() {
     setIsSigningOut(true);
@@ -44,14 +46,14 @@ export function UserMenu({ name, email, role }: UserMenuProps) {
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/profile"><UserRound className="size-4" />Profile</Link>
+          <Link href="/profile"><UserRound className="size-4" />{t("profile")}</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/settings"><Settings className="size-4" />Settings</Link>
+          <Link href="/settings"><Settings className="size-4" />{t("settings")}</Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem disabled={isSigningOut} onClick={signOut} className="text-destructive focus:text-destructive">
-          <LogOut className="size-4" />{isSigningOut ? "Signing out..." : "Sign out"}
+          <LogOut className="size-4" />{isSigningOut ? t("signingOut") : t("signOut")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
