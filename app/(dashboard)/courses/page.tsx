@@ -3,8 +3,9 @@ import { connection } from "next/server";
 import { ArrowUpRight, BookOpen, UsersRound } from "lucide-react";
 import { requireAuth } from "@/lib/auth/session";
 import { serverApis } from "@/lib/api/server-apis";
-import type { CourseDto, EnrollmentDto } from "@/types/api";
+import type { CourseDto, CourseStatus, EnrollmentDto, UserProfileDto } from "@/types/api";
 import { CourseEnrollmentAction } from "@/components/courses/course-enrollment-action";
+import { CourseCreateForm } from "@/components/courses/course-create-form";
 
 const dateFormatter = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
 
@@ -16,14 +17,17 @@ function EmptyState({ children }: { children: React.ReactNode }) {
   return <div className="border border-dashed border-border p-6 text-sm text-muted-foreground">{children}</div>;
 }
 
-async function loadCourses(role: string, userId: string) {
+async function loadCourses(role: string, userId: string, search?: string, status?: CourseStatus) {
   if (role === "Student") {
-    const [courses, enrollments] = await Promise.all([serverApis.courses.list(), serverApis.enrollments.listMine()]);
+    const [courses, enrollments] = await Promise.all([serverApis.courses.list({ search, status: "Open", pageSize: 100 }), serverApis.enrollments.listMine()]);
     return { courses: courses.items, enrollments };
   }
 
-  const courses = await serverApis.courses.list({ teacherId: role === "Teacher" ? userId : undefined, pageSize: 100 });
-  return { courses: courses.items, enrollments: [] as EnrollmentDto[] };
+  const [courses, teachers] = await Promise.all([
+    serverApis.courses.list({ search, status, teacherId: role === "Teacher" ? userId : undefined, pageSize: 100 }),
+    role === "Admin" ? serverApis.users.list({ pageSize: 100 }).then((result) => result.items.filter((candidate) => candidate.role === "Teacher" && candidate.status === "Active")) : Promise.resolve([] as UserProfileDto[]),
+  ]);
+  return { courses: courses.items, enrollments: [] as EnrollmentDto[], teachers };
 }
 
 function CourseCard({ course, enrollment }: { course: CourseDto; enrollment?: EnrollmentDto }) {
@@ -52,12 +56,14 @@ function CourseCard({ course, enrollment }: { course: CourseDto; enrollment?: En
   );
 }
 
-export default async function CoursesPage() {
+export default async function CoursesPage({ searchParams }: { searchParams: Promise<{ search?: string; status?: string }> }) {
   await connection();
   const { user } = await requireAuth();
-  let data: { courses: CourseDto[]; enrollments: EnrollmentDto[] };
+  const query = await searchParams;
+  const status = query.status === "Open" || query.status === "Closed" ? query.status : undefined;
+  let data: { courses: CourseDto[]; enrollments: EnrollmentDto[]; teachers?: UserProfileDto[] };
   try {
-    data = await loadCourses(user.role, user.id);
+    data = await loadCourses(user.role, user.id, query.search, status);
   } catch {
     return <section className="border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive">Courses could not be loaded. Please try again later.</section>;
   }
@@ -70,7 +76,7 @@ export default async function CoursesPage() {
       <header className="relative overflow-hidden border-b border-border pb-8">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-2xl"><p className="text-sm font-medium uppercase tracking-[0.18em] text-primary">{user.role} workspace</p><h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">Courses</h1><p className="mt-3 max-w-xl text-base leading-7 text-muted-foreground">A focused view of the learning spaces available to your account.</p></div>
-          {user.role !== "Student" ? <button type="button" className="inline-flex h-10 items-center justify-center border border-primary bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90" data-development-toast="Course creation is in development.">Create course</button> : null}
+          {user.role !== "Student" ? <CourseCreateForm role={user.role} teacherId={user.role === "Teacher" ? user.id : undefined} teachers={data.teachers ?? []} /> : null}
         </div>
       </header>
       <div className="grid gap-3 sm:grid-cols-3">
@@ -79,6 +85,7 @@ export default async function CoursesPage() {
         <div className="border-l-2 border-amber-500 bg-muted/40 px-4 py-3"><p className="text-xs uppercase tracking-wider text-muted-foreground">Pending requests</p><p className="mt-1 text-2xl font-semibold">{pendingEnrollments}</p></div>
       </div>
       <div className="flex items-center justify-between gap-4"><div><h2 className="text-xl font-semibold tracking-tight">{user.role === "Student" ? "Open courses" : "Your course spaces"}</h2><p className="mt-1 text-sm text-muted-foreground">{user.role === "Student" ? "Browse open courses and request to join." : "Courses currently assigned to your workspace."}</p></div></div>
+      {user.role !== "Student" ? <form className="flex flex-col gap-3 border-y border-border py-4 sm:flex-row" method="get"><input name="search" defaultValue={query.search} placeholder="Search courses" className="h-10 min-w-0 flex-1 border border-input bg-background px-3 text-sm" /><select name="status" defaultValue={status ?? ""} className="h-10 border border-input bg-background px-3 text-sm"><option value="">All statuses</option><option value="Open">Open</option><option value="Closed">Closed</option></select><button type="submit" className="h-10 border border-border px-4 text-sm font-medium hover:bg-muted">Filter</button></form> : null}
       {!data.courses.length ? <EmptyState>No courses are available for your account yet.</EmptyState> : <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{data.courses.map((course) => <CourseCard key={course.id} course={course} enrollment={enrollmentsByCourse.get(course.id)} />)}</div>}
     </section>
   );
