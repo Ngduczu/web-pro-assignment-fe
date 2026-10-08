@@ -16,7 +16,7 @@ type NavigationItem = {
 
 const navigation: NavigationItem[] = [
   { label: "Overview", href: "/", icon: LayoutDashboard, roles: ["Student", "Teacher", "Admin"] },
-  { label: "My courses", href: "/courses", icon: BookOpen, roles: ["Student", "Teacher", "Admin"] },
+  { label: "Courses", href: "/courses", icon: BookOpen, roles: ["Student", "Teacher", "Admin"] },
   { label: "Examinations", href: "/exams", icon: ClipboardCheck, roles: ["Student", "Teacher", "Admin"] },
   { label: "Messages", href: "/chat", icon: MessageCircle, roles: ["Student", "Teacher", "Admin"] },
   { label: "Users", href: "/admin/users", icon: Users, roles: ["Admin"] },

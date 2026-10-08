@@ -78,7 +78,7 @@ export default async function CoursesPage() {
         <div className="border-l-2 border-emerald-600 bg-muted/40 px-4 py-3"><p className="text-xs uppercase tracking-wider text-muted-foreground">Open courses</p><p className="mt-1 text-2xl font-semibold">{openCourses}</p></div>
         <div className="border-l-2 border-amber-500 bg-muted/40 px-4 py-3"><p className="text-xs uppercase tracking-wider text-muted-foreground">Pending requests</p><p className="mt-1 text-2xl font-semibold">{pendingEnrollments}</p></div>
       </div>
-      <div className="flex items-center justify-between gap-4"><div><h2 className="text-xl font-semibold tracking-tight">Your course spaces</h2><p className="mt-1 text-sm text-muted-foreground">{user.role === "Student" ? "Courses you can access or request to join." : "Courses currently assigned to your workspace."}</p></div></div>
+      <div className="flex items-center justify-between gap-4"><div><h2 className="text-xl font-semibold tracking-tight">{user.role === "Student" ? "Open courses" : "Your course spaces"}</h2><p className="mt-1 text-sm text-muted-foreground">{user.role === "Student" ? "Browse open courses and request to join." : "Courses currently assigned to your workspace."}</p></div></div>
       {!data.courses.length ? <EmptyState>No courses are available for your account yet.</EmptyState> : <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{data.courses.map((course) => <CourseCard key={course.id} course={course} enrollment={enrollmentsByCourse.get(course.id)} />)}</div>}
     </section>
   );
