@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LMS Portal",
-  description: "Learning management workspace",
+  title: "SFIT Study",
+  description: "SFIT Study learning workspace",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
