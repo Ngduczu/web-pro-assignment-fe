@@ -1,0 +1,9 @@
+"use client";
+
+import { Paperclip, Send, X } from "lucide-react";
+import type { ChatMessageDto } from "@/types/api";
+
+export function ChatComposer({ value, onChange, onSend, onFile, busy, disabled, reply, onCancelReply }: { value: string; onChange: (value: string) => void; onSend: () => void; onFile: (file: File) => void; busy: boolean; disabled: boolean; reply?: ChatMessageDto; onCancelReply: () => void }) {
+  return <div className="border-t border-border bg-card p-3 sm:p-4">{reply ? <div className="mb-3 flex items-start justify-between border-l-2 border-primary bg-muted/50 px-3 py-2 text-xs"><div><p className="font-medium">Replying to message</p><p className="mt-1 line-clamp-1 text-muted-foreground">{reply.content || reply.attachments[0]?.fileName}</p></div><button onClick={onCancelReply}><X className="size-4" /></button></div> : null}<div className="flex items-end gap-2"><label className={`flex size-10 shrink-0 items-center justify-center border border-border ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-muted"}`}><Paperclip className="size-4" /><input type="file" className="sr-only" disabled={disabled || busy} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) onFile(file); }} /></label><textarea rows={1} maxLength={4000} value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); onSend(); } }} placeholder={disabled ? "This conversation is archived" : "Write a message…"} className="max-h-36 min-h-10 flex-1 resize-y border border-input bg-background px-3 py-2 text-sm" /><button onClick={onSend} disabled={disabled || busy || !value.trim()} className="flex size-10 shrink-0 items-center justify-center bg-primary text-primary-foreground disabled:opacity-50" aria-label="Send"><Send className="size-4" /></button></div></div>;
+}
+
