@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { BookOpen, X } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { clientApis } from "@/lib/api/client-apis";
 import type { Role, UserProfileDto } from "@/types/api";
@@ -32,6 +33,33 @@ export function CourseCreateForm({ role, teacherId, teachers }: { role: Role; te
     }
   }
 
-  if (!open) return <button type="button" onClick={() => setOpen(true)} className="inline-flex h-10 items-center justify-center border border-primary bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90">Create course</button>;
-  return <form onSubmit={submit} className="w-full border border-border bg-card p-4 shadow-sm sm:max-w-xl"><div className="flex items-center justify-between gap-3"><h2 className="font-semibold">Create course</h2><button type="button" onClick={() => setOpen(false)} className="text-sm text-muted-foreground hover:text-foreground">Cancel</button></div><div className="mt-4 grid gap-3"><input required value={name} onChange={(event) => setName(event.target.value)} placeholder="Course name" className="h-10 border border-input bg-background px-3 text-sm" /><textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Description" rows={3} className="border border-input bg-background px-3 py-2 text-sm" /><div className="grid gap-3 sm:grid-cols-2"><input required min="1" type="number" value={maxStudents} onChange={(event) => setMaxStudents(event.target.value)} placeholder="Maximum students" className="h-10 border border-input bg-background px-3 text-sm" /><select value={status} onChange={(event) => setStatus(event.target.value as "Open" | "Closed")} className="h-10 border border-input bg-background px-3 text-sm"><option value="Open">Open</option><option value="Closed">Closed</option></select></div>{role === "Admin" ? <select required value={selectedTeacher} onChange={(event) => setSelectedTeacher(event.target.value)} className="h-10 border border-input bg-background px-3 text-sm"><option value="">Select teacher</option>{teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.fullName} · {teacher.email}</option>)}</select> : null}{error ? <p className="text-sm text-destructive">{error}</p> : null}<button type="submit" disabled={pending || !selectedTeacher} className="h-10 bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50">{pending ? "Creating..." : "Create course"}</button></div></form>;
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} className="inline-flex h-10 items-center justify-center gap-2 border border-primary bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90">
+        <BookOpen className="size-4" />
+        Create course
+      </button>
+      {open ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
+          <div className="absolute inset-0 bg-foreground/30 backdrop-blur-[3px]" />
+          <form onSubmit={submit} role="dialog" aria-modal="true" aria-labelledby="create-course-title" className="relative flex max-h-[calc(100vh-2rem)] w-full max-w-xl flex-col overflow-hidden border border-border bg-card shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-border bg-muted/35 px-5 py-5 sm:px-6">
+              <div className="flex gap-3"><div className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary"><BookOpen className="size-5" /></div><div><h2 id="create-course-title" className="text-lg font-semibold tracking-tight">Create a course</h2><p className="mt-1 text-sm text-muted-foreground">Set up a learning space for your students.</p></div></div>
+              <button type="button" onClick={() => setOpen(false)} aria-label="Close create course dialog" className="flex size-9 shrink-0 items-center justify-center text-muted-foreground transition hover:bg-muted hover:text-foreground"><X className="size-5" /></button>
+            </div>
+            <div className="min-h-0 overflow-y-auto px-5 py-6 sm:px-6">
+              <div className="grid gap-5">
+                <div className="space-y-2"><label htmlFor="course-name" className="text-sm font-medium">Course name <span className="text-destructive">*</span></label><input id="course-name" required value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Introduction to Web Development" className="h-11 w-full border border-input bg-background px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring/30" /></div>
+                <div className="space-y-2"><label htmlFor="course-description" className="text-sm font-medium">Description <span className="font-normal text-muted-foreground">(optional)</span></label><textarea id="course-description" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="What will students learn in this course?" rows={4} className="w-full resize-y border border-input bg-background px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring/30" /></div>
+                <div className="grid gap-5 sm:grid-cols-2"><div className="space-y-2"><label htmlFor="course-capacity" className="text-sm font-medium">Maximum students <span className="text-destructive">*</span></label><input id="course-capacity" required min="1" type="number" value={maxStudents} onChange={(event) => setMaxStudents(event.target.value)} className="h-11 w-full border border-input bg-background px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring/30" /></div><div className="space-y-2"><label htmlFor="course-status" className="text-sm font-medium">Course status</label><select id="course-status" value={status} onChange={(event) => setStatus(event.target.value as "Open" | "Closed")} className="h-11 w-full border border-input bg-background px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring/30"><option value="Open">Open for enrollment</option><option value="Closed">Closed</option></select></div></div>
+                {role === "Admin" ? <div className="space-y-2"><label htmlFor="course-teacher" className="text-sm font-medium">Course teacher <span className="text-destructive">*</span></label><select id="course-teacher" required value={selectedTeacher} onChange={(event) => setSelectedTeacher(event.target.value)} className="h-11 w-full border border-input bg-background px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring/30"><option value="">Select an active teacher</option>{teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.fullName} · {teacher.email}</option>)}</select></div> : null}
+                {error ? <p className="border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-sm text-destructive">{error}</p> : null}
+              </div>
+            </div>
+            <div className="flex flex-col-reverse gap-3 border-t border-border bg-muted/20 px-5 py-4 sm:flex-row sm:justify-end sm:px-6"><button type="button" onClick={() => setOpen(false)} className="h-10 border border-border px-4 text-sm font-medium hover:bg-muted">Cancel</button><button type="submit" disabled={pending || !selectedTeacher} className="h-10 bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">{pending ? "Creating..." : "Create course"}</button></div>
+          </form>
+        </div>
+      ) : null}
+    </>
+  );
 }
