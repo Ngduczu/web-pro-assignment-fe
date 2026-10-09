@@ -10,6 +10,8 @@ import { CourseAccessNotice, CourseDetailHeader } from "@/components/courses/cou
 import { CourseAssessmentActions } from "@/components/courses/course-assessment-actions";
 import { getServerLanguage, translate } from "@/lib/i18n-server";
 
+export const instant = false;
+
 export default async function CourseDetailPage({ params, searchParams }: { params: Promise<{ courseId: string }>; searchParams: Promise<{ tab?: string }> }) {
   await connection();
   const { user } = await requireAuth();
@@ -56,7 +58,7 @@ export default async function CourseDetailPage({ params, searchParams }: { param
   const initialTab = availableTabs.includes(requestedTab as CourseDetailTab) ? requestedTab as CourseDetailTab : "lessons";
 
   return (
-    <section className="space-y-8">
+    <section className="course-detail-page space-y-8">
       <CourseDetailHeader course={course} role={user.role} enrollment={enrollment} />
       {!hasAccess ? <CourseAccessNotice /> : <CourseDetailTabs
         key={lessons.map((lesson) => `${lesson.id}:${lesson.order}`).join("|")}
