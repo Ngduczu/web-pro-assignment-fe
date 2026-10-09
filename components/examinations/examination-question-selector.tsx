@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { LoaderCircle, Search, X } from "lucide-react";
 import { clientApis } from "@/lib/api/client-apis";
 import { ApiError } from "@/lib/api/errors";
@@ -36,7 +36,7 @@ export function ExaminationQuestionSelector({ banks, value, onChange, onError }:
   const selected = useMemo(() => new Set(value.questionIds), [value.questionIds]);
   const total = value.rules.reduce((sum, rule) => sum + Math.max(0, rule.questionCount || 0), 0);
 
-  async function loadQuestions() {
+  const loadQuestions = useCallback(async () => {
     if (banks.every((bank) => questionsByBank[bank.id])) return;
     setLoading(true); onError(undefined);
     try {
@@ -45,12 +45,17 @@ export function ExaminationQuestionSelector({ banks, value, onChange, onError }:
     } catch (error) {
       onError(language === "en" && error instanceof ApiError ? error.detail : text.loadFailure);
     } finally { setLoading(false); }
-  }
+  }, [banks, language, onError, questionsByBank, text.loadFailure]);
+
+  useEffect(() => {
+    if (value.mode === "Manual") void Promise.resolve().then(loadQuestions);
+  }, [loadQuestions, value.mode]);
 
   function setMode(mode: ExaminationQuestionSelectionMode) {
     onError(undefined);
-    onChange({ ...value, mode });
-    if (mode === "Manual") void loadQuestions();
+    onChange(mode === "Random"
+      ? { mode, rules: value.rules.length ? value.rules : [{ questionBankId: "", difficulty: "Medium", questionCount: 1 }], questionIds: [] }
+      : { mode, rules: [], questionIds: value.questionIds });
   }
 
   function toggle(questionId: string) {
