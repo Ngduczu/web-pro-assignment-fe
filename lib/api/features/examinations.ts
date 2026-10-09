@@ -1,5 +1,5 @@
 import type { ApiTransport } from "@/lib/api/transport";
-import type { CreateExaminationRequest, ExaminationAttemptDto, ExaminationAttemptQuery, ExaminationAttemptResultDto, ExaminationDto, ExaminationSubmitReason, ExaminationViolationType, PaginatedResponse, StudentAnswerDto, StudentExamQuestionDto, StudentExaminationDto, StudentFillInBlankAnswerInput, UpdateExaminationRequest } from "@/types/api";
+import type { CreateExaminationRequest, ExaminationAttemptDto, ExaminationAttemptQuery, ExaminationAttemptResultDto, ExaminationDto, ExaminationSubmitReason, ExaminationViolationType, PaginatedResponse, StudentAnswerDto, StudentExamQuestionDto, StudentExaminationDto, StudentFillInBlankAnswerInput, UpdateExaminationQuestionSetRequest, UpdateExaminationRequest } from "@/types/api";
 
 export function createExaminationsApi(request: ApiTransport) {
   return {
@@ -9,6 +9,7 @@ export function createExaminationsApi(request: ApiTransport) {
     get: (examinationId: string) => request<ExaminationDto>(`/examinations/${examinationId}`),
     getForStudent: (examinationId: string) => request<StudentExaminationDto>(`/examinations/${examinationId}/student`),
     update: (examinationId: string, body: UpdateExaminationRequest) => request<ExaminationDto>(`/examinations/${examinationId}`, { method: "PUT", body }),
+    updateQuestionSet: (examinationId: string, body: UpdateExaminationQuestionSetRequest) => request<ExaminationDto>(`/examinations/${examinationId}/question-set`, { method: "PUT", body }),
     publish: (examinationId: string) => request<ExaminationDto>(`/examinations/${examinationId}/publish`, { method: "POST" }),
     close: (examinationId: string) => request<ExaminationDto>(`/examinations/${examinationId}/close`, { method: "POST" }),
     getMyAttempt: (examinationId: string) => request<ExaminationAttemptDto>(`/examinations/${examinationId}/my-attempt`),
