@@ -1,12 +1,13 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ApiError } from "@/lib/api/errors";
 import { requireAuth } from "@/lib/auth/session";
 import { serverApis } from "@/lib/api/server-apis";
 import { getServerLanguage, translate } from "@/lib/i18n-server";
 import { DashboardSkeleton } from "@/components/loading-skeleton";
 import { CourseExaminationHeader } from "@/components/examinations/course-examination-header";
+import { DraftQuestionSetEditor } from "@/components/examinations/draft-question-set-editor";
 import { ExaminationManager, StudentExaminationWorkspace } from "@/components/examinations/examination-detail-workspace";
 import type { CourseDto, ExaminationAttemptDto, ExaminationAttemptResultDto, ExaminationDto, PaginatedResponse, StudentExaminationDto } from "@/types/api";
 
@@ -40,15 +41,37 @@ async function CourseExaminationDetail({ courseId, examinationId }: { courseId: 
     return <div className="border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive">{translate(language, "This examination could not be loaded.")}</div>;
   }
 
+  if (
+    user.role === "Student" &&
+    attempt &&
+    (attempt.status === "InProgress" || attempt.status === "Disconnected")
+  ) {
+    redirect(`/exam-attempts/${examination.id}`);
+  }
+
   return (
     <section className="space-y-8">
       <CourseExaminationHeader course={course} examination={examination} language={language} />
+      {user.role !== "Student" && examination.status === "Draft"
+        ? <DraftQuestionSetEditor
+            key={`${examination.id}-${examination.modifiedAt}`}
+            examination={examination as ExaminationDto}
+            teacherId={course.teacherId}
+          />
+        : null}
       {user.role === "Student"
         ? <StudentExaminationWorkspace exam={examination as StudentExaminationDto} initialAttempt={attempt} />
-        : <ExaminationManager initialExam={examination as ExaminationDto} initialResults={results ?? { items: [], page: 1, pageSize: 20, totalCount: 0, totalPages: 0 }} />}
+        : <ExaminationManager
+            key={`${examination.id}-${examination.modifiedAt}`}
+            initialExam={examination as ExaminationDto}
+            initialResults={results ?? { items: [], page: 1, pageSize: 20, totalCount: 0, totalPages: 0 }}
+            canAutoSubmit={user.role === "Admin"}
+          />}
     </section>
   );
 }
+
+export const instant = false;
 
 export default async function CourseExaminationPage({ params }: { params: Promise<{ courseId: string; examinationId: string }> }) {
   const { courseId, examinationId } = await params;
