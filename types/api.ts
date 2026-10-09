@@ -47,12 +47,13 @@ export type PasswordResetResultDto = { userId: string; email: string; status: Ac
 export type SessionResponse = { expiresAt: string; refreshTokenExpiresAt: string };
 export type AuthenticatedSession = { user: UserProfileDto; expiresAt: string };
 
-export type UserProfileDto = { id: string; email: string; fullName: string; phone: string | null; role: Role; status: AccountStatus; avatarUrl: string | null; createdAt: string };
+export type UserProfileDto = { id: string; email: string; fullName: string; phone: string | null; role: Role; status: AccountStatus; avatarUrl: string | null; createdAt: string; hasPassword: boolean; isGoogleLinked?: boolean | null };
 export type UserQuery = { search?: string; page?: number; pageSize?: number };
 export type AdminCreateUserRequest = { email: string; fullName: string; phone?: string | null; password: string; role: Role };
 export type UpdateUserStatusRequest = { status: AccountStatus };
 export type AdminUpdateUserRequest = { fullName: string; phone?: string | null; role: Role };
 export type UpdateMyProfileRequest = { fullName: string; phone?: string | null };
+export type ChangeMyPasswordRequest = { currentPassword?: string | null; newPassword: string; passwordConfirm: string };
 export type ChatUserSearchDto = { id: string; email: string; fullName: string; avatarUrl: string | null };
 
 export type CreateCourseRequest = { name: string; description?: string | null; teacherId: string; maxStudents: number; status?: CourseStatus };
@@ -85,7 +86,13 @@ export type MultipleChoiceOptionInput = { content: string; isCorrect: boolean };
 export type FillInBlankAnswerInput = { blankOrder: number; expectedAnswer: string };
 export type CreateMultipleChoiceQuestionRequest = { content: string; difficulty: QuestionDifficulty; shuffleOptions: boolean; options: MultipleChoiceOptionInput[] };
 export type CreateFillInBlankQuestionRequest = { content: string; difficulty: QuestionDifficulty; answers: FillInBlankAnswerInput[] };
-export type UpdateQuestionRequest = { content: string; difficulty: QuestionDifficulty };
+export type UpdateQuestionRequest = {
+  content: string;
+  difficulty: QuestionDifficulty;
+  shuffleOptions?: boolean | null;
+  options?: { content: string; isCorrect: boolean }[] | null;
+  answers?: { blankOrder: number; expectedAnswer: string }[] | null;
+};
 export type MultipleChoiceOptionDto = { id: string; content: string; order: number; isCorrect: boolean };
 export type FillInBlankAnswerDto = { id: string; blankOrder: number; expectedAnswer: string };
 export type QuestionDto = { id: string; questionBankId: string; content: string; type: QuestionType; difficulty: QuestionDifficulty; shuffleOptions: boolean; options: MultipleChoiceOptionDto[]; answers: FillInBlankAnswerDto[]; createdAt: string; modifiedAt: string };
@@ -94,6 +101,7 @@ export type ExaminationSecuritySettings = { requireFullscreen: boolean; fullscre
 export type QuestionSelectionRuleInput = { questionBankId: string; difficulty: QuestionDifficulty; questionCount: number };
 export type CreateExaminationRequest = { title: string; description?: string | null; startAt: string; dueAt: string; durationMinutes: number; shuffleQuestions: boolean; showScoreImmediately: boolean; security: ExaminationSecuritySettings; selectionMode: ExaminationQuestionSelectionMode; questionSelectionRules: QuestionSelectionRuleInput[]; questionIds: string[] };
 export type UpdateExaminationRequest = Omit<CreateExaminationRequest, "selectionMode" | "questionSelectionRules" | "questionIds">;
+export type UpdateExaminationQuestionSetRequest = Pick<CreateExaminationRequest, "selectionMode" | "questionSelectionRules" | "questionIds">;
 export type QuestionSelectionRuleDto = { id: string; questionBankId: string; difficulty: QuestionDifficulty; questionCount: number };
 export type ExaminationDto = { id: string; courseId: string; title: string; description: string | null; status: ExaminationStatus; startAt: string; dueAt: string; durationMinutes: number; shuffleQuestions: boolean; showScoreImmediately: boolean; security: ExaminationSecuritySettings; questionSelectionRules: QuestionSelectionRuleDto[]; selectionMode: ExaminationQuestionSelectionMode; selectedQuestionIds: string[]; questionCount: number; createdAt: string; modifiedAt: string };
 export type StudentExaminationDto = Omit<ExaminationDto, "questionSelectionRules" | "selectionMode" | "selectedQuestionIds">;
@@ -106,9 +114,22 @@ export type ExaminationAttemptResultDto = { id: string; examinationId: string; s
 export type StudentExamOptionDto = { id: string; content: string; order: number };
 export type StudentExamQuestionDto = { id: string; content: string; type: QuestionType; order: number; options: StudentExamOptionDto[] };
 
-export type ChatRoomDto = { id: string; type: string; courseId: string | null; participantIds: string[]; createdAt: string; archivedAt: string | null };
+export type ChatRoomDto = {
+  id: string;
+  type: string;
+  courseId: string | null;
+  participantIds: string[];
+  createdAt: string;
+  archivedAt: string | null;
+  title?: string | null;
+  directParticipantName?: string | null;
+  directParticipantEmail?: string | null;
+  hasUnread: boolean;
+  latestMessage?: { id: string; senderId: string; content: string | null; createdAt: string; hasAttachments: boolean } | null;
+};
 export type ChatAttachmentDto = { id: string; fileName: string; contentType: string; fileSize: number };
-export type ChatMessageDto = { id: string; chatRoomId: string; senderId: string; content: string | null; replyToMessageId: string | null; createdAt: string; editedAt: string | null; deletedAt: string | null; attachments: ChatAttachmentDto[] };
+export type ChatMessageDto = { id: string; chatRoomId: string; senderId: string; senderFullName: string | null; senderRole: Role | null; content: string | null; replyToMessageId: string | null; createdAt: string; editedAt: string | null; deletedAt: string | null; attachments: ChatAttachmentDto[] };
 export type ChatPageQuery = { page?: number; pageSize?: number };
+export type ChatRealtimeSession = { accessToken: string; expiresAt: string; hubUrl: string };
 export type SendChatMessageRequest = { content?: string | null; replyToMessageId?: string | null };
 export type EditChatMessageRequest = { content?: string | null };
