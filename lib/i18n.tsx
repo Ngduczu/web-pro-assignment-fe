@@ -9,14 +9,22 @@ type TranslationKey =
   | "language"
   | "overview"
   | "courses"
+  | "lessons"
+  | "assignments"
   | "examinations"
+  | "examAttempts"
   | "questionBanks"
   | "messages"
   | "users"
   | "settings"
+  | "collapseSidebar"
+  | "expandSidebar"
   | "studentWorkspace"
   | "teacherWorkspace"
   | "administration"
+  | "studentHub"
+  | "teacherHub"
+  | "adminHub"
   | "welcomeBack"
   | "learningWorkspace"
   | "newToSfit"
@@ -79,6 +87,8 @@ type TranslationKey =
   | "profile"
   | "home"
   | "details"
+  | "breadcrumb"
+  | "navigation"
   | "signOut"
   | "signingOut";
 
@@ -88,14 +98,22 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     language: "Language",
     overview: "Overview",
     courses: "Courses",
+    lessons: "Lessons",
+    assignments: "Assignments",
     examinations: "Examinations",
+    examAttempts: "Exam attempts",
     questionBanks: "Question banks",
     messages: "Messages",
     users: "Users",
     settings: "Settings",
+    collapseSidebar: "Collapse sidebar",
+    expandSidebar: "Expand sidebar",
     studentWorkspace: "Student workspace",
     teacherWorkspace: "Teacher workspace",
     administration: "Administration",
+    studentHub: "Student Hub",
+    teacherHub: "Teacher Hub",
+    adminHub: "Admin Hub",
     welcomeBack: "Welcome back",
     learningWorkspace: "Sign in to continue to your learning workspace.",
     newToSfit: "New to SFIT Study?",
@@ -158,6 +176,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     profile: "Profile",
     home: "Home",
     details: "Details",
+    breadcrumb: "Breadcrumb",
+    navigation: "Main navigation",
     signOut: "Sign out",
     signingOut: "Signing out...",
   },
@@ -166,14 +186,22 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     language: "Ngôn ngữ",
     overview: "Tổng quan",
     courses: "Khóa học",
+    lessons: "Bài học",
+    assignments: "Bài tập",
     examinations: "Kỳ thi",
+    examAttempts: "Lượt thi",
     questionBanks: "Ngân hàng câu hỏi",
     messages: "Tin nhắn",
     users: "Người dùng",
     settings: "Cài đặt",
+    collapseSidebar: "Thu gọn thanh bên",
+    expandSidebar: "Mở rộng thanh bên",
     studentWorkspace: "Không gian học viên",
     teacherWorkspace: "Không gian giảng viên",
     administration: "Quản trị",
+    studentHub: "Góc học tập",
+    teacherHub: "Quản lý giảng dạy",
+    adminHub: "Quản trị hệ thống",
     welcomeBack: "Chào mừng trở lại",
     learningWorkspace: "Đăng nhập để tiếp tục sử dụng không gian học tập.",
     newToSfit: "Bạn mới dùng SFIT Study?",
@@ -236,6 +264,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     profile: "Hồ sơ",
     home: "Trang chủ",
     details: "Chi tiết",
+    breadcrumb: "Đường dẫn điều hướng",
+    navigation: "Điều hướng chính",
     signOut: "Đăng xuất",
     signingOut: "Đang đăng xuất...",
   },
@@ -254,9 +284,9 @@ const LANGUAGE_KEY = "sfit-study-language";
 const LANGUAGE_EVENT = "sfit-study-language-change";
 
 function readLanguage() {
-  if (typeof window === "undefined") return "en" as Language;
+  if (typeof window === "undefined") return "vi" as Language;
   const value = window.localStorage.getItem(LANGUAGE_KEY);
-  return value === "vi" ? "vi" : "en";
+  return value === "en" ? "en" : "vi";
 }
 
 function subscribeToLanguage(callback: () => void) {
@@ -266,7 +296,7 @@ function subscribeToLanguage(callback: () => void) {
 }
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const language = useSyncExternalStore<Language>(subscribeToLanguage, readLanguage, () => "en");
+  const language = useSyncExternalStore<Language>(subscribeToLanguage, readLanguage, () => "vi");
 
   useEffect(() => {
     window.localStorage.setItem(LANGUAGE_KEY, language);
