@@ -63,7 +63,8 @@ export type CourseDto = { id: string; name: string; description: string | null; 
 
 export type EnrollmentQuery = { page?: number; pageSize?: number };
 export type EnrollmentStudentDto = { id: string; fullName: string; email: string };
-export type EnrollmentDto = { id: string; studentId: string; courseId: string; status: EnrollmentStatus; student: EnrollmentStudentDto | null; createdAt: string; modifiedAt: string };
+export type EnrollmentCourseDto = { id: string; name: string; status: CourseStatus };
+export type EnrollmentDto = { id: string; studentId: string; courseId: string; status: EnrollmentStatus; student: EnrollmentStudentDto | null; createdAt: string; modifiedAt: string; course: EnrollmentCourseDto | null };
 
 export type CreateLessonRequest = { name: string; content?: string | null; order: number; status?: LessonStatus };
 export type UpdateLessonRequest = { name: string; content?: string | null; order: number; status: LessonStatus };

@@ -18,7 +18,7 @@ function formatDate(value: string, language: "en" | "vi") {
 async function loadCourses(
   role: string,
   userId: string,
-  tab: "all" | "mine",
+  tab: "all" | "available" | "waiting" | "mine",
   search?: string,
   status?: CourseStatus,
   includeDeleted = false,
@@ -27,14 +27,28 @@ async function loadCourses(
     const [courseItems, enrollments] = await Promise.all([
       tab === "mine"
         ? serverApis.courses.listMine()
-        : serverApis.courses.list({ search, status: "Open", pageSize: 100 }).then((result) => result.items),
+        : tab === "waiting"
+          ? Promise.resolve([] as CourseDto[])
+          : serverApis.courses.list({ search, status: "Open", pageSize: 100 }).then((result) => result.items),
       serverApis.enrollments.listMine(),
     ]);
     const normalizedSearch = search?.trim().toLocaleLowerCase();
-    const courses = tab === "mine" && normalizedSearch
-      ? courseItems.filter((course) => course.name.toLocaleLowerCase().includes(normalizedSearch))
-      : courseItems;
-    return { courses, enrollments };
+    const activeCourseIds = new Set(
+      enrollments
+        .filter((enrollment) => enrollment.status === "Waiting" || enrollment.status === "Accepted")
+        .map((enrollment) => enrollment.courseId),
+    );
+    const courses = courseItems.filter((course) => {
+      return (tab !== "available" || !activeCourseIds.has(course.id)) &&
+        (tab !== "mine" || !normalizedSearch || course.name.toLocaleLowerCase().includes(normalizedSearch));
+    });
+    const visibleEnrollments = tab === "waiting"
+      ? enrollments.filter((enrollment) =>
+          enrollment.status === "Waiting" &&
+          (!normalizedSearch || enrollment.course?.name.toLocaleLowerCase().includes(normalizedSearch)),
+        )
+      : enrollments;
+    return { courses, enrollments: visibleEnrollments };
   }
 
   const [courses, teachers] = await Promise.all([
@@ -52,6 +66,46 @@ async function loadCourses(
       : Promise.resolve([] as UserProfileDto[]),
   ]);
   return { courses: courses.items, enrollments: [] as EnrollmentDto[], teachers };
+}
+
+function WaitingEnrollmentCard({ enrollment, language }: { enrollment: EnrollmentDto; language: "en" | "vi" }) {
+  const course = enrollment.course;
+  return (
+    <article className="flex min-h-40 flex-col justify-between gap-5 rounded-2xl border border-border bg-card p-5 shadow-xs sm:flex-row sm:items-center sm:p-6">
+      <div className="flex min-w-0 items-start gap-4">
+        <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-300">
+          <BookOpen className="size-5" aria-hidden="true" />
+        </div>
+        <div className="min-w-0">
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">
+              {language === "vi" ? "Đang chờ duyệt" : "Awaiting approval"}
+            </span>
+            {course ? (
+              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${course.status === "Open" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                {translate(language, course.status)}
+              </span>
+            ) : null}
+          </div>
+          <h2 className="truncate text-lg font-semibold leading-snug tracking-tight">
+            {course?.status === "Open" ? (
+              <Link href={`/courses/${course.id}`} className="transition-colors hover:text-primary">{course.name}</Link>
+            ) : course?.name ?? (language === "vi" ? "Không xác định khóa học" : "Course unavailable")}
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {language === "vi" ? "Gửi yêu cầu ngày" : "Requested"} {formatDate(enrollment.createdAt, language)}
+          </p>
+        </div>
+      </div>
+      <div className="shrink-0 sm:pl-4">
+        <CourseEnrollmentAction
+          courseId={enrollment.courseId}
+          enrollment={enrollment}
+          courseStatus={course?.status ?? "Closed"}
+        />
+      </div>
+    </article>
+  );
 }
 
 function CourseCard({
@@ -129,7 +183,9 @@ async function CoursesContent({ searchParams }: CoursesPageProps) {
   const language = await getServerLanguage();
   const text = (value: string) => translate(language, value);
   const query = await searchParams;
-  const tab = user.role === "Teacher" || query.tab === "mine" ? "mine" : "all";
+  const tab = user.role === "Student"
+    ? query.tab === "waiting" ? "waiting" : query.tab === "mine" ? "mine" : "available"
+    : user.role === "Teacher" ? "mine" : "all";
   const status = query.status === "Open" || query.status === "Closed" ? query.status : undefined;
   const includeDeleted = query.includeDeleted === "true";
   let data: { courses: CourseDto[]; enrollments: EnrollmentDto[]; teachers?: UserProfileDto[] };
@@ -162,31 +218,45 @@ async function CoursesContent({ searchParams }: CoursesPageProps) {
         }
       />
 
-      {user.role !== "Teacher" ? <nav aria-label={language === "vi" ? "Phân loại khóa học" : "Course views"} className="flex w-fit rounded-xl border border-border bg-card p-1 shadow-xs">
-        <Link
-          href="/courses?tab=all"
-          className={`rounded-lg px-4 py-2 text-sm font-medium transition ${tab === "all" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
-        >
-          {language === "vi" ? "Tất cả khóa học" : "All courses"}
-        </Link>
-        <Link
-          href="/courses?tab=mine"
-          className={`rounded-lg px-4 py-2 text-sm font-medium transition ${tab === "mine" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
-        >
-          {language === "vi" ? "Khóa học của tôi" : "My courses"}
-        </Link>
-      </nav> : null}
+      {user.role === "Student" ? (
+        <nav aria-label={language === "vi" ? "Phân loại khóa học" : "Course views"} className="flex w-full max-w-full overflow-x-auto rounded-xl border border-border bg-card p-1 shadow-xs sm:w-fit">
+          {([
+            ["available", language === "vi" ? "Khóa học khả dụng" : "Available courses"],
+            ["waiting", language === "vi" ? "Hàng đợi" : "Pending"],
+            ["mine", language === "vi" ? "Khóa học của tôi" : "My courses"],
+          ] as const).map(([tabValue, label]) => (
+            <Link
+              key={tabValue}
+              href={`/courses?tab=${tabValue}`}
+              aria-current={tab === tabValue ? "page" : undefined}
+              className={`shrink-0 rounded-lg px-3 py-2 text-sm font-medium transition sm:px-4 ${tab === tabValue ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+            >
+              {label}
+            </Link>
+          ))}
+        </nav>
+      ) : null}
 
       <PageSection
-        title={tab === "mine" ? (language === "vi" ? "Khóa học của tôi" : "My courses") : (language === "vi" ? "Tất cả khóa học" : "All courses")}
+        title={user.role === "Student"
+          ? tab === "mine"
+            ? (language === "vi" ? "Khóa học của tôi" : "My courses")
+            : tab === "waiting"
+              ? (language === "vi" ? "Khóa học đang chờ duyệt" : "Pending courses")
+              : (language === "vi" ? "Khóa học khả dụng" : "Available courses")
+          : tab === "mine"
+            ? (language === "vi" ? "Khóa học của tôi" : "My courses")
+            : (language === "vi" ? "Tất cả khóa học" : "All courses")}
         description={
-          tab === "mine"
-            ? user.role === "Student"
+          user.role === "Student"
+            ? tab === "mine"
               ? (language === "vi" ? "Các khóa học bạn đã được duyệt tham gia." : "Courses where your enrollment has been accepted.")
-              : text("Courses currently assigned to your workspace.")
-            : user.role === "Student"
-              ? text("Browse open courses and request to join.")
-              : (language === "vi" ? "Toàn bộ khóa học đang có trên hệ thống." : "All courses currently available on the platform.")
+              : tab === "waiting"
+                ? (language === "vi" ? "Các khóa học đang chờ giáo viên chấp nhận yêu cầu đăng ký." : "Courses waiting for a teacher to approve your request.")
+                : (language === "vi" ? "Các khóa học đang mở mà bạn chưa đăng ký hoặc chưa được duyệt." : "Open courses you have not joined or been approved for yet.")
+            : tab === "mine"
+                ? text("Courses currently assigned to your workspace.")
+                : (language === "vi" ? "Toàn bộ khóa học đang có trên hệ thống." : "All courses currently available on the platform.")
         }
       >
         <form className="mb-5 flex flex-col gap-3 rounded-xl border border-border bg-muted/30 p-3 shadow-xs sm:flex-row sm:items-center sm:p-4" method="get">
@@ -216,7 +286,17 @@ async function CoursesContent({ searchParams }: CoursesPageProps) {
             </button>
           </form>
 
-        {!data.courses.length ? (
+        {tab === "waiting" && user.role === "Student" ? (
+          !data.enrollments.length ? (
+            <EmptyState>{language === "vi" ? "Bạn chưa có khóa học nào đang chờ duyệt." : "You have no courses awaiting approval."}</EmptyState>
+          ) : (
+            <div className="space-y-3">
+              {data.enrollments.map((enrollment) => (
+                <WaitingEnrollmentCard key={enrollment.id} enrollment={enrollment} language={language} />
+              ))}
+            </div>
+          )
+        ) : !data.courses.length ? (
           <EmptyState>{text("No courses are available for your account yet.")}</EmptyState>
         ) : (
           <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">

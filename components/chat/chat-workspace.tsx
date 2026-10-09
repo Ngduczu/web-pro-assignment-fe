@@ -363,7 +363,7 @@ export function ChatWorkspace({
         </div>
       ) : null}
 
-      <div className="grid min-h-0 flex-1 overflow-hidden rounded-2xl border border-border bg-card shadow-sm lg:grid-cols-[19rem_minmax(0,1fr)]">
+      <div className="chat-frame grid min-h-0 flex-1 overflow-hidden rounded-2xl border border-border bg-card shadow-sm lg:grid-cols-[19rem_minmax(0,1fr)]">
         <div className={selected ? "hidden lg:block" : "block"}>
           <ChatRoomList
             key={selected?.id ?? "no-selected-room"}

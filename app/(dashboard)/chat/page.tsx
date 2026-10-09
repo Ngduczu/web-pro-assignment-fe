@@ -24,7 +24,7 @@ async function ChatContent({ searchParams }: { searchParams: Promise<{ courseId?
     return <div className="border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive">{language === "vi" ? "Không thể tải tin nhắn." : "Messages could not be loaded."}</div>;
   }
   return (
-    <section className="space-y-6">
+    <section className="chat-layout flex min-h-0 flex-1 flex-col">
       <ChatWorkspace
         initialRooms={rooms}
         courses={courses}
