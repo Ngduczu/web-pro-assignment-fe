@@ -111,7 +111,7 @@ export function ChatMessageList({
   const byId = useMemo(() => new Map(messages.map((message) => [message.id, message])), [messages]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto p-4 sm:p-6">
+    <div className="chat-scrollbar flex min-h-0 flex-1 flex-col-reverse overflow-y-auto p-4 sm:p-6">
       <div>
         {ordered.length ? (
           ordered.map((message, index) => {
