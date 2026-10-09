@@ -15,16 +15,23 @@ export function Breadcrumbs() {
     teacher: t("teacherWorkspace"),
     admin: t("administration"),
     courses: t("courses"),
+    lessons: t("lessons"),
+    assignments: t("assignments"),
+    exercises: t("assignments"),
+    examinations: t("examinations"),
     enrollments: t("enrollments"),
     exams: t("examinations"),
+    "exam-attempts": t("examAttempts"),
     "question-banks": t("questionBanks"),
     chat: t("chat"),
     profile: t("profile"),
+    settings: t("settings"),
+    users: t("users"),
   };
 
   return (
-    <nav aria-label="Breadcrumb" className="hidden min-w-0 items-center gap-1.5 text-sm text-muted-foreground md:flex">
-      <Link href="/" className="rounded-sm p-1 transition-colors hover:text-foreground" aria-label={t("home")}>
+    <nav aria-label={t("breadcrumb")} className="hidden min-w-0 items-center gap-1.5 text-sm text-primary-foreground/70 md:flex">
+      <Link href="/" className="rounded-sm p-1 transition-colors hover:text-primary-foreground" aria-label={t("home")}>
         <Home className="size-4" />
       </Link>
       {segments.map((segment, index) => {
@@ -35,7 +42,7 @@ export function Breadcrumbs() {
         return (
           <span key={href} className="flex min-w-0 items-center gap-1.5">
             <ChevronRight className="size-3.5 shrink-0" />
-            <Link href={href} className={cn("truncate transition-colors hover:text-foreground", isLast && "font-medium text-foreground")}>
+            <Link href={href} className={cn("truncate transition-colors hover:text-primary-foreground", isLast && "font-medium text-primary-foreground")}>
               {label}
             </Link>
           </span>
