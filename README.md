@@ -16,6 +16,16 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+Configure the backend before starting the app:
+
+```bash
+BACKEND_API_URL=http://localhost:5258/api
+# Optional when the public SignalR URL cannot be derived from BACKEND_API_URL.
+BACKEND_HUB_URL=http://localhost:5258/hubs/chat
+```
+
+`BACKEND_HUB_URL` is returned only with a short-lived, hub-only chat ticket. Main access and refresh tokens remain in HTTP-only cookies.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
