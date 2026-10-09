@@ -15,7 +15,7 @@ type DashboardHeaderProps = { user: UserProfileDto };
 export function DashboardHeader({ user }: DashboardHeaderProps) {
   const { t } = useLanguage();
   return (
-    <header className="flex min-h-16 items-center justify-between gap-4 border-b border-border bg-background px-4 sm:px-6 lg:px-8">
+    <header className="dashboard-header flex min-h-16 items-center justify-between gap-4 border-b border-border bg-primary px-4 text-primary-foreground sm:px-6 lg:px-8">
       <div className="flex min-w-0 items-center gap-2">
         <MobileSidebar role={user.role} />
         <Breadcrumbs />
@@ -23,7 +23,7 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
       </div>
       <div className="flex items-center gap-1">
         <Button variant="ghost" size="icon" aria-label={t("notifications")}><Bell className="size-4" /></Button>
-        <LanguageToggle />
+        <LanguageToggle tone="primary" />
         <ThemeToggle />
         <UserMenu name={user.fullName} email={user.email} role={user.role} />
       </div>
