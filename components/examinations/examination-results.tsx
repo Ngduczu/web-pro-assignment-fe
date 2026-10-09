@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, ChevronLeft, ChevronRight, UserRound } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Download, UserRound } from "lucide-react";
 import { clientApis } from "@/lib/api/client-apis";
 import { ApiError } from "@/lib/api/errors";
 import { useLanguage } from "@/lib/i18n";
@@ -14,6 +14,7 @@ const copy = {
     active: "In progress", pending: "Pending release", previous: "Previous", next: "Next", page: "Page", of: "of",
     loadError: "Unable to load examination results.", reconcile: "Auto-submit", reconciling: "Submitting...",
     reconcileConfirm: "Auto-submit this expired attempt?", reconcileError: "Unable to auto-submit this attempt.",
+    exportResults: "Export results", exportingResults: "Preparing XLSX...", exportError: "Unable to export examination results.",
   },
   vi: {
     title: "Lịch sử làm bài của lớp", description: "Theo dõi tiến độ, kết quả và tín hiệu vi phạm của từng học viên.",
@@ -21,6 +22,7 @@ const copy = {
     active: "Đang làm", pending: "Chờ công bố", previous: "Trước", next: "Sau", page: "Trang", of: "trên",
     loadError: "Không thể tải kết quả kỳ thi.", reconcile: "Tự động nộp", reconciling: "Đang nộp...",
     reconcileConfirm: "Tự động nộp lượt thi đã hết điều kiện này?", reconcileError: "Không thể tự động nộp lượt thi này.",
+    exportResults: "Xuất kết quả", exportingResults: "Đang tạo tệp XLSX...", exportError: "Không thể xuất kết quả kỳ thi.",
   },
 };
 
@@ -42,6 +44,7 @@ export function ExaminationResults({ examination, initial, canAutoSubmit = false
   const text = copy[language];
   const [data, setData] = useState(initial);
   const [busy, setBusy] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [busyAttemptId, setBusyAttemptId] = useState<string>();
   const [error, setError] = useState<string>();
 
@@ -60,6 +63,58 @@ export function ExaminationResults({ examination, initial, canAutoSubmit = false
     finally { setBusyAttemptId(undefined); }
   }
 
+  async function exportResults() {
+    setExporting(true); setError(undefined);
+    try {
+      const firstPage = await clientApis.examinations.listAttempts(examination.id, { page: 1, pageSize: 100 });
+      const items = [...firstPage.items];
+      for (let page = 2; page <= firstPage.totalPages; page++) {
+        const nextPage = await clientApis.examinations.listAttempts(examination.id, { page, pageSize: 100 });
+        items.push(...nextPage.items);
+      }
+
+      const ExcelJS = (await import("exceljs")).default;
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet(language === "vi" ? "Kết quả" : "Results");
+      sheet.columns = [
+        { header: text.student, key: "student", width: 28 },
+        { header: "Email", key: "email", width: 34 },
+        { header: text.status, key: "status", width: 20 },
+        { header: text.started, key: "started", width: 22, style: { numFmt: "dd/mm/yyyy hh:mm" } },
+        { header: text.submitted, key: "submitted", width: 22, style: { numFmt: "dd/mm/yyyy hh:mm" } },
+        { header: text.result, key: "result", width: 28 },
+        { header: text.violations, key: "violations", width: 14 },
+      ];
+      items.forEach((item) => sheet.addRow({
+        student: item.studentFullName,
+        email: item.studentEmail,
+        status: status(item.status),
+        started: new Date(item.startedAt),
+        submitted: item.submittedAt ? new Date(item.submittedAt) : null,
+        result: result(item),
+        violations: item.violationCount,
+      }));
+      sheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+      sheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF15803D" } };
+      sheet.views = [{ state: "frozen", ySplit: 1 }];
+      sheet.autoFilter = { from: "A1", to: `G${Math.max(items.length + 1, 1)}` };
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const safeTitle = examination.title.replace(/[\\/:*?\"<>|]/g, "-").trim() || "examination";
+      link.href = url;
+      link.download = `${safeTitle}-results.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError(text.exportError);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   function status(value: string) { return language === "vi" ? statusVi[value] ?? value : value.replace(/([a-z])([A-Z])/g, "$1 $2"); }
   function result(item: ExaminationAttemptResultDto) {
     if (item.status === "InProgress" || item.status === "Disconnected") return text.active;
@@ -68,7 +123,7 @@ export function ExaminationResults({ examination, initial, canAutoSubmit = false
   }
 
   return <section className="space-y-5">
-    <div><h2 className="text-lg font-semibold">{text.title}</h2><p className="mt-1 text-sm text-muted-foreground">{text.description}</p></div>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-lg font-semibold">{text.title}</h2><p className="mt-1 text-sm text-muted-foreground">{text.description}</p></div><button type="button" onClick={exportResults} disabled={exporting || !data.totalCount} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"><Download className="size-4" />{exporting ? text.exportingResults : text.exportResults}</button></div>
     {error ? <p className="border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p> : null}
     {!data.items.length ? <div className="border border-dashed border-border p-6 text-sm text-muted-foreground">{text.noAttempts}</div> : (
       <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-xs">
