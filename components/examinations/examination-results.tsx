@@ -1,24 +1,83 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, UserRound } from "lucide-react";
 import { clientApis } from "@/lib/api/client-apis";
 import { ApiError } from "@/lib/api/errors";
 import { useLanguage } from "@/lib/i18n";
-import type { ExaminationAttemptResultDto, PaginatedResponse } from "@/types/api";
+import type { ExaminationAttemptResultDto, ExaminationDto, ExaminationSubmitReason, PaginatedResponse } from "@/types/api";
 
 const copy = {
-  en: { title: "Class attempt history", description: "Participants, start and submission times, status, scores and violations for this examination.", student: "Student", status: "Status", started: "Started", submitted: "Submitted", result: "Result", violations: "Violations", noAttempts: "No students have attempted this examination yet.", active: "In progress", pending: "Pending release", previous: "Previous", next: "Next", page: "Page", of: "of", loadError: "Unable to load examination results." },
-  vi: { title: "Lịch sử làm bài của lớp", description: "Người tham gia, thời gian bắt đầu và nộp bài, trạng thái, điểm và vi phạm của kỳ thi này.", student: "Học viên", status: "Trạng thái", started: "Bắt đầu", submitted: "Nộp bài", result: "Kết quả", violations: "Vi phạm", noAttempts: "Chưa có học viên nào làm kỳ thi này.", active: "Đang làm", pending: "Chờ công bố", previous: "Trước", next: "Sau", page: "Trang", of: "trên", loadError: "Không thể tải kết quả kỳ thi." },
+  en: {
+    title: "Class attempt history", description: "Review each participant's progress, result and integrity signals.",
+    student: "Student", status: "Status", action: "Action", started: "Started", submitted: "Submitted", result: "Result", violations: "Violations", noAttempts: "No students have attempted this examination yet.",
+    active: "In progress", pending: "Pending release", previous: "Previous", next: "Next", page: "Page", of: "of",
+    loadError: "Unable to load examination results.", reconcile: "Auto-submit", reconciling: "Submitting...",
+    reconcileConfirm: "Auto-submit this expired attempt?", reconcileError: "Unable to auto-submit this attempt.",
+  },
+  vi: {
+    title: "Lịch sử làm bài của lớp", description: "Theo dõi tiến độ, kết quả và tín hiệu vi phạm của từng học viên.",
+    student: "Học viên", status: "Trạng thái", action: "Thao tác", started: "Bắt đầu", submitted: "Nộp bài", result: "Kết quả", violations: "Vi phạm", noAttempts: "Chưa có học viên nào làm kỳ thi này.",
+    active: "Đang làm", pending: "Chờ công bố", previous: "Trước", next: "Sau", page: "Trang", of: "trên",
+    loadError: "Không thể tải kết quả kỳ thi.", reconcile: "Tự động nộp", reconciling: "Đang nộp...",
+    reconcileConfirm: "Tự động nộp lượt thi đã hết điều kiện này?", reconcileError: "Không thể tự động nộp lượt thi này.",
+  },
 };
-const statusVi: Record<string, string> = { InProgress: "Đang làm", Disconnected: "Mất kết nối", Submitted: "Đã nộp", AutoSubmitted: "Tự động nộp" };
-const date = (value: string | null, language: "en" | "vi") => value ? new Intl.DateTimeFormat(language === "vi" ? "vi-VN" : "en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "—";
 
-export function ExaminationResults({ examinationId, initial }: { examinationId: string; initial: PaginatedResponse<ExaminationAttemptResultDto> }) {
-  const { language } = useLanguage(); const text = copy[language];
-  const [data, setData] = useState(initial), [busy, setBusy] = useState(false), [error, setError] = useState<string>();
-  async function go(page: number) { setBusy(true); setError(undefined); try { setData(await clientApis.examinations.listAttempts(examinationId, { page, pageSize: data.pageSize })); } catch (caught) { setError(caught instanceof ApiError ? caught.detail : text.loadError); } finally { setBusy(false); } }
+const statusVi: Record<string, string> = { InProgress: "Đang làm", Disconnected: "Mất kết nối", Submitted: "Đã nộp", AutoSubmitted: "Tự động nộp" };
+const formatDate = (value: string | null, language: "en" | "vi") => value
+  ? new Intl.DateTimeFormat(language === "vi" ? "vi-VN" : "en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value))
+  : "—";
+
+function applicableAutoSubmitReason(item: ExaminationAttemptResultDto, examination: ExaminationDto): ExaminationSubmitReason | undefined {
+  if (item.status !== "InProgress" && item.status !== "Disconnected") return undefined;
+  if (examination.status === "Closed") return "ExaminationClosed";
+  if (examination.security.maxViolations > 0 && item.violationCount >= examination.security.maxViolations) return "MaxViolationsExceeded";
+  const deadline = Math.min(new Date(examination.dueAt).getTime(), new Date(item.startedAt).getTime() + examination.durationMinutes * 60_000);
+  return Date.now() >= deadline ? "DurationExpired" : undefined;
+}
+
+export function ExaminationResults({ examination, initial, canAutoSubmit = false }: { examination: ExaminationDto; initial: PaginatedResponse<ExaminationAttemptResultDto>; canAutoSubmit?: boolean }) {
+  const { language } = useLanguage();
+  const text = copy[language];
+  const [data, setData] = useState(initial);
+  const [busy, setBusy] = useState(false);
+  const [busyAttemptId, setBusyAttemptId] = useState<string>();
+  const [error, setError] = useState<string>();
+
+  async function go(page: number) {
+    setBusy(true); setError(undefined);
+    try { setData(await clientApis.examinations.listAttempts(examination.id, { page, pageSize: data.pageSize })); }
+    catch (caught) { setError(language === "en" && caught instanceof ApiError ? caught.detail : text.loadError); }
+    finally { setBusy(false); }
+  }
+
+  async function autoSubmit(item: ExaminationAttemptResultDto, reason: ExaminationSubmitReason) {
+    if (!window.confirm(text.reconcileConfirm)) return;
+    setBusyAttemptId(item.id); setError(undefined);
+    try { await clientApis.examinations.autoSubmit(item.id, reason); await go(data.page); }
+    catch (caught) { setError(language === "en" && caught instanceof ApiError ? caught.detail : text.reconcileError); }
+    finally { setBusyAttemptId(undefined); }
+  }
+
   function status(value: string) { return language === "vi" ? statusVi[value] ?? value : value.replace(/([a-z])([A-Z])/g, "$1 $2"); }
-  function result(item: ExaminationAttemptResultDto) { if (item.status === "InProgress" || item.status === "Disconnected") return text.active; if (item.score === null) return text.pending; return `${item.score.toFixed(2)}/10 · ${item.correctAnswers ?? 0}/${item.totalQuestions}`; }
-  return <section className="space-y-4"><div><h2 className="text-lg font-semibold">{text.title}</h2><p className="mt-1 text-sm text-muted-foreground">{text.description}</p></div>{error ? <p className="border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p> : null}{!data.items.length ? <div className="border border-dashed border-border p-6 text-sm text-muted-foreground">{text.noAttempts}</div> : <><div className="space-y-3 md:hidden">{data.items.map((item) => <article key={item.id} className="border border-border bg-card p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate font-medium">{item.studentFullName}</p><p className="truncate text-xs text-muted-foreground">{item.studentEmail}</p></div><span className="shrink-0 bg-muted px-2 py-1 text-xs">{status(item.status)}</span></div><dl className="mt-4 grid grid-cols-2 gap-3 text-sm"><div><dt className="text-xs text-muted-foreground">{text.result}</dt><dd className="mt-1 font-medium">{result(item)}</dd></div><div><dt className="text-xs text-muted-foreground">{text.violations}</dt><dd className="mt-1 font-medium">{item.violationCount}</dd></div><div><dt className="text-xs text-muted-foreground">{text.started}</dt><dd className="mt-1">{date(item.startedAt, language)}</dd></div><div><dt className="text-xs text-muted-foreground">{text.submitted}</dt><dd className="mt-1">{date(item.submittedAt, language)}</dd></div></dl></article>)}</div><div className="hidden overflow-x-auto border border-border md:block"><table className="w-full min-w-[58rem] text-left text-sm"><thead className="border-b border-border bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground"><tr><th className="px-4 py-3 font-medium">{text.student}</th><th className="px-4 py-3 font-medium">{text.status}</th><th className="px-4 py-3 font-medium">{text.started}</th><th className="px-4 py-3 font-medium">{text.submitted}</th><th className="px-4 py-3 font-medium">{text.result}</th><th className="px-4 py-3 text-right font-medium">{text.violations}</th></tr></thead><tbody className="divide-y divide-border">{data.items.map((item) => <tr key={item.id}><td className="px-4 py-4"><p className="font-medium">{item.studentFullName}</p><p className="text-xs text-muted-foreground">{item.studentEmail}</p></td><td className="px-4 py-4">{status(item.status)}</td><td className="px-4 py-4 text-muted-foreground">{date(item.startedAt, language)}</td><td className="px-4 py-4 text-muted-foreground">{date(item.submittedAt, language)}</td><td className="px-4 py-4 font-medium">{result(item)}</td><td className="px-4 py-4 text-right">{item.violationCount}</td></tr>)}</tbody></table></div></>}{data.totalPages > 1 ? <div className="flex items-center justify-between gap-3"><p className="text-sm text-muted-foreground">{text.page} {data.page} {text.of} {data.totalPages}</p><div className="flex gap-2"><button disabled={busy || data.page <= 1} onClick={() => go(data.page - 1)} className="inline-flex items-center gap-1 border border-border px-3 py-2 text-sm disabled:opacity-40"><ChevronLeft className="size-4" />{text.previous}</button><button disabled={busy || data.page >= data.totalPages} onClick={() => go(data.page + 1)} className="inline-flex items-center gap-1 border border-border px-3 py-2 text-sm disabled:opacity-40">{text.next}<ChevronRight className="size-4" /></button></div></div> : null}</section>;
+  function result(item: ExaminationAttemptResultDto) {
+    if (item.status === "InProgress" || item.status === "Disconnected") return text.active;
+    if (item.score === null) return text.pending;
+    return `${item.score.toFixed(2)}/10 · ${item.correctAnswers ?? 0}/${item.totalQuestions}`;
+  }
+
+  return <section className="space-y-5">
+    <div><h2 className="text-lg font-semibold">{text.title}</h2><p className="mt-1 text-sm text-muted-foreground">{text.description}</p></div>
+    {error ? <p className="border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p> : null}
+    {!data.items.length ? <div className="border border-dashed border-border p-6 text-sm text-muted-foreground">{text.noAttempts}</div> : (
+      <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-xs">
+        <table className="w-full min-w-[64rem] text-left text-sm">
+          <thead className="border-b border-border bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground"><tr><th className="px-4 py-3 font-medium">{text.student}</th><th className="px-4 py-3 font-medium">{text.status}</th><th className="px-4 py-3 font-medium">{text.started}</th><th className="px-4 py-3 font-medium">{text.submitted}</th><th className="px-4 py-3 font-medium">{text.result}</th><th className="px-4 py-3 text-right font-medium">{text.violations}</th>{canAutoSubmit ? <th className="px-4 py-3 text-right font-medium">{text.action}</th> : null}</tr></thead>
+          <tbody className="divide-y divide-border">{data.items.map((item) => { const reason = canAutoSubmit ? applicableAutoSubmitReason(item, examination) : undefined; const active = item.status === "InProgress" || item.status === "Disconnected"; return <tr key={item.id} className="hover:bg-muted/20"><td className="px-4 py-4"><div className="flex items-center gap-3"><span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><UserRound className="size-4" /></span><div><p className="font-medium">{item.studentFullName}</p><p className="text-xs text-muted-foreground">{item.studentEmail}</p></div></div></td><td className="px-4 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${active ? "bg-amber-500/10 text-amber-700 dark:text-amber-300" : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"}`}>{status(item.status)}</span></td><td className="px-4 py-4 text-muted-foreground">{formatDate(item.startedAt, language)}</td><td className="px-4 py-4 text-muted-foreground">{formatDate(item.submittedAt, language)}</td><td className="px-4 py-4 font-medium">{result(item)}</td><td className={`px-4 py-4 text-right font-medium ${item.violationCount ? "text-destructive" : ""}`}>{item.violationCount}</td>{canAutoSubmit ? <td className="px-4 py-4 text-right">{reason ? <button type="button" disabled={busyAttemptId === item.id} onClick={() => autoSubmit(item, reason)} className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/5 disabled:opacity-50"><AlertTriangle className="size-3.5" />{busyAttemptId === item.id ? text.reconciling : text.reconcile}</button> : "—"}</td> : null}</tr>; })}</tbody>
+        </table>
+      </div>
+    )}
+    {data.totalPages > 1 ? <div className="flex items-center justify-between gap-3"><p className="text-sm text-muted-foreground">{text.page} {data.page} {text.of} {data.totalPages}</p><div className="flex gap-2"><button disabled={busy || data.page <= 1} onClick={() => go(data.page - 1)} className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-40"><ChevronLeft className="size-4" />{text.previous}</button><button disabled={busy || data.page >= data.totalPages} onClick={() => go(data.page + 1)} className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-40">{text.next}<ChevronRight className="size-4" /></button></div></div> : null}
+  </section>;
 }
