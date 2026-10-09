@@ -7,19 +7,19 @@
   --card-foreground: 0.22 0.018 155;
   --popover: 1 0 0;
   --popover-foreground: 0.22 0.018 155;
-  --primary: 0.48 0.145 155;
-  --primary-foreground: 0.98 0.012 155;
-  --secondary: 0.94 0.025 155;
-  --secondary-foreground: 0.29 0.045 155;
-  --muted: 0.955 0.012 155;
-  --muted-foreground: 0.49 0.025 155;
-  --accent: 0.92 0.045 155;
-  --accent-foreground: 0.28 0.06 155;
+  --primary: 0.45 0.13 150;
+  --primary-foreground: 0.98 0.012 150;
+  --secondary: 0.95 0.02 150;
+  --secondary-foreground: 0.29 0.045 150;
+  --muted: 0.96 0.012 150;
+  --muted-foreground: 0.48 0.025 150;
+  --accent: 0.93 0.035 150;
+  --accent-foreground: 0.28 0.06 150;
   --destructive: 0.58 0.19 25;
   --destructive-foreground: 0.98 0.012 25;
-  --border: 0.89 0.022 155;
-  --input: 0.86 0.028 155;
-  --ring: 0.48 0.145 155;
+  --border: 0.9 0.018 150;
+  --input: 0.87 0.025 150;
+  --ring: 0.45 0.13 150;
   --sidebar: 0.965 0.018 155;
   --sidebar-foreground: 0.25 0.025 155;
   --sidebar-primary: 0.48 0.145 155;
@@ -28,7 +28,7 @@
   --sidebar-accent-foreground: 0.28 0.06 155;
   --sidebar-border: 0.89 0.022 155;
   --sidebar-ring: 0.48 0.145 155;
-  --radius: 0.5rem;
+  --radius: 0.375rem;
 }
 
 .dark {
@@ -61,6 +61,70 @@
   --sidebar-ring: 0.72 0.15 155;
 }
 
+.course-detail-page {
+  --primary: 0.46 0.14 150;
+  --primary-foreground: 0.98 0.01 150;
+  --ring: 0.46 0.14 150;
+  --accent: 0.94 0.035 150;
+  --accent-foreground: 0.25 0.07 150;
+  --course-hero: 0.4 0.1 150;
+}
+
+.dark .course-detail-page {
+  --primary: 0.68 0.14 150;
+  --primary-foreground: 0.17 0.03 150;
+  --ring: 0.68 0.14 150;
+  --accent: 0.31 0.06 150;
+  --accent-foreground: 0.91 0.03 150;
+  --course-hero: 0.31 0.08 150;
+}
+
+.course-detail-hero {
+  background-color: oklch(var(--course-hero));
+}
+
+.dashboard-sidebar {
+  --sidebar: 0.975 0.014 150;
+  --sidebar-foreground: 0.28 0.035 150;
+  --sidebar-primary: 0.48 0.145 150;
+  --sidebar-primary-foreground: 0.98 0.012 150;
+  --sidebar-accent: 0.92 0.055 150;
+  --sidebar-accent-foreground: 0.28 0.08 150;
+  --sidebar-border: 0.91 0.025 150;
+  --sidebar-ring: 0.48 0.145 150;
+}
+
+.dark .dashboard-sidebar {
+  --sidebar: 0.19 0.025 155;
+  --sidebar-foreground: 0.93 0.02 155;
+  --sidebar-primary: 0.72 0.15 155;
+  --sidebar-primary-foreground: 0.18 0.035 155;
+  --sidebar-accent: 0.28 0.05 155;
+  --sidebar-accent-foreground: 0.93 0.02 155;
+  --sidebar-border: 0.31 0.032 155;
+  --sidebar-ring: 0.72 0.15 155;
+}
+
+.dashboard-header {
+  --primary: 0.95 0.025 150;
+  --primary-foreground: 0.28 0.08 150;
+  --accent: 0.89 0.04 150;
+  --accent-foreground: 0.25 0.08 150;
+  --border: 0.85 0.03 150;
+  --muted-foreground: 0.42 0.055 150;
+  --ring: 0.45 0.12 150;
+}
+
+.dark .dashboard-header {
+  --primary: 0.25 0.055 150;
+  --primary-foreground: 0.96 0.02 150;
+  --accent: 0.34 0.07 150;
+  --accent-foreground: 0.98 0.01 150;
+  --border: 0.4 0.06 150;
+  --muted-foreground: 0.74 0.03 150;
+  --ring: 0.68 0.1 150;
+}
+
 @theme inline {
   --color-background: oklch(var(--background));
   --color-foreground: oklch(var(--foreground));
@@ -89,10 +153,14 @@
   --color-sidebar-accent-foreground: oklch(var(--sidebar-accent-foreground));
   --color-sidebar-border: oklch(var(--sidebar-border));
   --color-sidebar-ring: oklch(var(--sidebar-ring));
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --radius-xs: 0.125rem;
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: calc(var(--radius) - 1px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xl: calc(var(--radius) + 2px);
+  --radius-2xl: calc(var(--radius) + 4px);
+  --radius-3xl: calc(var(--radius) + 6px);
+  --radius-4xl: calc(var(--radius) + 8px);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -114,5 +182,149 @@
   ::selection {
     background-color: oklch(var(--primary) / 0.2);
     color: oklch(var(--foreground));
+  }
+}
+
+@keyframes sfit-page-enter {
+  from {
+    opacity: 0.01;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes sfit-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes sfit-fade-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes sfit-sheet-enter-left {
+  from {
+    opacity: 0.7;
+    transform: translateX(-0.5rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes sfit-sheet-exit-left {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  to {
+    opacity: 0.7;
+    transform: translateX(-0.5rem);
+  }
+}
+
+@keyframes sfit-sheet-enter-right {
+  from {
+    opacity: 0.7;
+    transform: translateX(0.5rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes sfit-sheet-exit-right {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  to {
+    opacity: 0.7;
+    transform: translateX(0.5rem);
+  }
+}
+
+.motion-page-enter {
+  animation: sfit-page-enter 180ms ease-out both;
+}
+
+.motion-lift {
+  transition: transform 160ms ease-out, border-color 160ms ease-out, box-shadow 160ms ease-out;
+}
+
+.motion-lift:hover {
+  transform: translateY(-0.125rem);
+}
+
+button:not(:disabled) {
+  transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+button:not(:disabled):active {
+  transform: scale(0.98);
+}
+
+button[role="tab"] {
+  transition: color 150ms ease-out, background-color 150ms ease-out, box-shadow 150ms ease-out;
+}
+
+[role="tabpanel"],
+[role="dialog"] {
+  animation: sfit-fade-in 160ms ease-out both;
+}
+
+[data-motion-overlay][data-state="open"] {
+  animation: sfit-fade-in 160ms ease-out both;
+}
+
+[data-motion-overlay][data-state="closed"] {
+  animation: sfit-fade-out 120ms ease-in both;
+}
+
+[data-motion-sheet][data-side="left"][data-state="open"] {
+  animation: sfit-sheet-enter-left 180ms ease-out both;
+}
+
+[data-motion-sheet][data-side="left"][data-state="closed"] {
+  animation: sfit-sheet-exit-left 140ms ease-in both;
+}
+
+[data-motion-sheet][data-side="right"][data-state="open"] {
+  animation: sfit-sheet-enter-right 180ms ease-out both;
+}
+
+[data-motion-sheet][data-side="right"][data-state="closed"] {
+  animation: sfit-sheet-exit-right 140ms ease-in both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
