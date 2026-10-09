@@ -153,7 +153,7 @@ export function ChatRoomList({
       </div>
 
       {/* Room list */}
-      <div id="chat-tab-panel" role="tabpanel" aria-labelledby={activeTab === "personal" ? "chat-tab-personal" : "chat-tab-groups"} className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2.5">
+      <div id="chat-tab-panel" role="tabpanel" aria-labelledby={activeTab === "personal" ? "chat-tab-personal" : "chat-tab-groups"} className="chat-scrollbar min-h-0 flex-1 space-y-1 overflow-y-auto p-2.5">
         {visibleRooms.length ? (
           visibleRooms.map((room) => {
             const isSelected = selectedId === room.id;
