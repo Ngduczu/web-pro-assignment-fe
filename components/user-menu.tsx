@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronsUpDown, LogOut, Settings, UserRound } from "lucide-react";
+import { ChevronsUpDown, LogOut, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { authSessionApi } from "@/lib/api/auth-session-client";
@@ -18,7 +18,10 @@ type UserMenuProps = {
 export function UserMenu({ name, email, role }: UserMenuProps) {
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const roleLabel = language === "vi"
+    ? ({ Student: "Học viên", Teacher: "Giảng viên", Admin: "Quản trị viên" }[role] ?? role)
+    : role;
 
   async function signOut() {
     setIsSigningOut(true);
@@ -29,14 +32,14 @@ export function UserMenu({ name, email, role }: UserMenuProps) {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="h-auto max-w-52 justify-start px-2 py-1.5 text-left">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-foreground text-xs font-semibold text-primary">
             {name.slice(0, 1).toUpperCase()}
           </span>
           <span className="hidden min-w-0 flex-1 flex-col items-start lg:flex">
             <span className="w-full truncate text-sm font-medium">{name}</span>
-            <span className="w-full truncate text-xs text-muted-foreground">{role}</span>
+            <span className="w-full truncate text-xs text-primary-foreground/70">{roleLabel}</span>
           </span>
-          <ChevronsUpDown className="ml-1 size-4 shrink-0 text-muted-foreground" />
+          <ChevronsUpDown className="ml-1 size-4 shrink-0 text-primary-foreground/70" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
@@ -46,10 +49,10 @@ export function UserMenu({ name, email, role }: UserMenuProps) {
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/profile"><UserRound className="size-4" />{t("profile")}</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/settings"><Settings className="size-4" />{t("settings")}</Link>
+          <Link href="/profile">
+            <UserRound className="size-4" />
+            {t("profile")} &amp; {t("settings")}
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem disabled={isSigningOut} onClick={signOut} className="text-destructive focus:text-destructive">
