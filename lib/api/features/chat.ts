@@ -12,6 +12,7 @@ function fileBody(file: File, content?: string | null, replyToMessageId?: string
 export function createChatApi(request: ApiTransport) {
   return {
     listRooms: () => request<ChatRoomDto[]>("/chat/rooms"),
+    joinRoom: (roomId: string) => request<ChatRoomDto>(`/chat/rooms/${roomId}/join`, { method: "POST" }),
     getOrCreateCourseRoom: (courseId: string) => request<ChatRoomDto>(`/chat/courses/${courseId}`, { method: "POST" }),
     getOrCreateDirectRoom: (userId: string) => request<ChatRoomDto>(`/chat/direct/${userId}`, { method: "POST" }),
     listMessages: (roomId: string, query?: ChatPageQuery) => request<ChatMessageDto[]>(`/chat/rooms/${roomId}/messages`, { query }),
