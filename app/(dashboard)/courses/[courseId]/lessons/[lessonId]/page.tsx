@@ -6,6 +6,8 @@ import { serverApis } from "@/lib/api/server-apis";
 import { LessonDetailWorkspace } from "@/components/courses/lesson-detail-workspace";
 import { getServerLanguage, translate } from "@/lib/i18n-server";
 
+export const instant = false;
+
 export default async function LessonDetailPage({ params }: { params: Promise<{ courseId: string; lessonId: string }> }) {
   await connection();
   const { user } = await requireAuth();
@@ -14,11 +16,13 @@ export default async function LessonDetailPage({ params }: { params: Promise<{ c
   let course;
   let lesson;
   let materials;
+  let lessons;
   try {
-    [course, lesson, materials] = await Promise.all([
+    [course, lesson, materials, lessons] = await Promise.all([
       serverApis.courses.get(courseId),
       serverApis.lessons.get(lessonId),
       serverApis.lessons.listMaterials(lessonId),
+      serverApis.lessons.list(courseId).catch(() => []),
     ]);
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) notFound();
@@ -27,7 +31,7 @@ export default async function LessonDetailPage({ params }: { params: Promise<{ c
 
   return (
     <section className="space-y-8">
-      <LessonDetailWorkspace course={course} lesson={lesson} materials={materials} canManage={user.role === "Teacher" || user.role === "Admin"} />
+      <LessonDetailWorkspace course={course} lesson={lesson} lessons={lessons} materials={materials} canManage={user.role === "Teacher" || user.role === "Admin"} />
     </section>
   );
 }
