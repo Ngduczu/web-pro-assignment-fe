@@ -11,6 +11,7 @@ async function proxy(request: Request, context: RouteContext) {
 
   const url = new URL(request.url);
   const backendPath = `/${path}${url.search}`;
+  const isOAuthCallback = /^auth\/oauth\/[^/]+\/callback$/i.test(path);
   const method = request.method as "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   const headers = new Headers();
   const contentType = request.headers.get("content-type");
@@ -18,9 +19,14 @@ async function proxy(request: Request, context: RouteContext) {
   const cookie = request.headers.get("cookie");
   if (cookie) headers.set("Cookie", cookie);
   const rawBody = method === "GET" ? undefined : await request.arrayBuffer();
-  const response = await serverBackendRequest(backendPath, { method, headers, rawBody });
+  const response = await serverBackendRequest(backendPath, {
+    method,
+    headers,
+    rawBody,
+    redirect: isOAuthCallback ? "manual" : undefined,
+  });
   const responseHeaders = new Headers();
-  for (const header of ["content-type", "content-disposition", "content-length", "accept-ranges"]) {
+  for (const header of ["content-type", "content-disposition", "content-length", "accept-ranges", "location"]) {
     const value = response.headers.get(header);
     if (value) responseHeaders.set(header, value);
   }

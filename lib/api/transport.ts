@@ -7,6 +7,7 @@ export type ApiRequestOptions = {
   rawBody?: BodyInit;
   signal?: AbortSignal;
   headers?: HeadersInit;
+  redirect?: RequestRedirect;
 };
 
 export type ApiTransport = <T>(path: string, options?: ApiRequestOptions) => Promise<T>;
@@ -26,5 +27,11 @@ export function createRequestInit(options: ApiRequestOptions = {}): RequestInit 
   const body = options.rawBody ?? (options.body instanceof FormData ? options.body : options.body === undefined ? undefined : JSON.stringify(options.body));
   if (body !== undefined && !(body instanceof FormData) && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
 
-  return { method: options.method ?? "GET", headers, body: body as BodyInit | undefined, signal: options.signal };
+  return {
+    method: options.method ?? "GET",
+    headers,
+    body: body as BodyInit | undefined,
+    signal: options.signal,
+    redirect: options.redirect,
+  };
 }
