@@ -79,7 +79,7 @@ export function EmptyState({ children, mascotSrc }: { children: ReactNode; masco
 
 export function StatRow({ stats }: { stats: { label: string; value: string | number }[] }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {stats.map((stat, index) => (
         <div key={stat.label} className="motion-lift relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-xs hover:border-primary/30 hover:shadow-sm">
           <span className="absolute right-4 top-4 text-4xl font-bold text-primary/8">{String(index + 1).padStart(2, "0")}</span>
