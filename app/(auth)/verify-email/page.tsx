@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
 import { ApiError } from "@/lib/api/errors";
@@ -25,14 +25,29 @@ const copy = {
 
 function VerifyEmailForm() {
   const params = useSearchParams();
+  const router = useRouter();
   const { language, t } = useLanguage();
   const text = copy[language];
   const [serverError, setServerError] = useState<string>();
   const [success, setSuccess] = useState<"verified" | "resent">();
   const [cooldown, setCooldown] = useState(0);
-  const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<VerifyEmailValues>({ resolver: zodResolver(verifyEmailSchema), defaultValues: { email: "", verificationCode: "" } });
+  const codeInputRef = useRef<HTMLInputElement>(null);
+  const { control, register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<VerifyEmailValues>({ resolver: zodResolver(verifyEmailSchema), defaultValues: { email: "", verificationCode: "" } });
+  const verificationCode = useWatch({ control, name: "verificationCode" });
+  const codeRegistration = register("verificationCode", {
+    onChange: (event) => {
+      const value = event.target.value.toUpperCase();
+      event.target.value = value;
+      setValue("verificationCode", value, { shouldValidate: true });
+    },
+  });
   useEffect(() => { const email = params.get("email"); if (email) setValue("email", email); }, [params, setValue]);
   useEffect(() => { if (cooldown <= 0) return; const timer = window.setInterval(() => setCooldown((value) => value - 1), 1000); return () => window.clearInterval(timer); }, [cooldown]);
+  useEffect(() => {
+    if (success !== "verified") return;
+    const timer = window.setTimeout(() => router.replace("/login"), 3000);
+    return () => window.clearTimeout(timer);
+  }, [router, success]);
 
   async function onSubmit(values: VerifyEmailValues) {
     setServerError(undefined);
@@ -55,7 +70,36 @@ function VerifyEmailForm() {
       <form className="space-y-5" onSubmit={handleSubmit(onSubmit)} noValidate>
         <FormMessage message={serverError} /><FormMessage message={success ? text[success] : undefined} tone="success" />
         <div className="space-y-2"><label htmlFor="email" className="text-sm font-medium">{t("email")}<RequiredMark /></label><input id="email" type="email" {...register("email")} className="flex h-10 w-full border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />{errors.email ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.email.message)}</p> : null}</div>
-        <div className="space-y-2"><label htmlFor="verificationCode" className="text-sm font-medium">{t("verificationCode")}<RequiredMark /></label><input id="verificationCode" maxLength={6} inputMode="text" {...register("verificationCode", { onChange: (event) => { event.target.value = event.target.value.toUpperCase(); } })} className="flex h-10 w-full border border-input bg-background px-3 py-2 font-mono tracking-[0.2em] outline-none focus-visible:ring-2 focus-visible:ring-ring" />{errors.verificationCode ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.verificationCode.message)}</p> : null}</div>
+        <div className="space-y-2">
+          <label htmlFor="verificationCode" className="text-sm font-medium">{t("verificationCode")}<RequiredMark /></label>
+          <div className="relative grid grid-cols-6 gap-2 rounded-md focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2" onClick={() => codeInputRef.current?.focus()}>
+            <input
+              {...codeRegistration}
+              id="verificationCode"
+              ref={(element) => { codeRegistration.ref(element); codeInputRef.current = element; }}
+              maxLength={6}
+              inputMode="text"
+              autoComplete="one-time-code"
+              autoCapitalize="characters"
+              aria-invalid={Boolean(errors.verificationCode)}
+              aria-describedby={errors.verificationCode ? "verificationCode-error" : undefined}
+              className="absolute inset-0 z-10 size-full cursor-text opacity-0"
+            />
+            {Array.from({ length: 6 }, (_, index) => {
+              const character = verificationCode[index];
+              return (
+                <span
+                  key={`${index}-${character ?? "empty"}`}
+                  aria-hidden="true"
+                  className={`flex h-12 min-w-0 items-center justify-center rounded-md border bg-background font-mono text-lg font-semibold transition-[border-color,background-color,transform,box-shadow] duration-150 ${character ? "border-primary/60 bg-primary/5 code-slot-enter" : "border-input"}`}
+                >
+                  {character ?? ""}
+                </span>
+              );
+            })}
+          </div>
+          {errors.verificationCode ? <p id="verificationCode-error" className="text-xs text-destructive">{localizeAuthMessage(language, errors.verificationCode.message)}</p> : null}
+        </div>
         <AuthSubmit loading={isSubmitting}>{t("verifyEmail")}</AuthSubmit>
         <button type="button" disabled={cooldown > 0} onClick={resend} className="w-full text-sm font-medium text-primary hover:underline disabled:pointer-events-none disabled:text-muted-foreground">{cooldown > 0 ? `${text.resendIn} ${cooldown}s` : text.resend}</button>
       </form>
