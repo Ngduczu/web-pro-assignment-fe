@@ -7,10 +7,11 @@ import { DashboardSkeleton } from "@/components/loading-skeleton";
 import type { UserProfileDto } from "@/types/api";
 import { getServerLanguage, translate } from "@/lib/i18n-server";
 import { AlertBanner, PageHeader } from "@/components/ui/page-chrome";
+import { isAdministratorRole } from "@/lib/auth/roles";
 
 async function QuestionBanksContent() {
   await connection();
-  const { user } = await requireRole("Teacher", "Admin");
+  const { user } = await requireRole("Teacher", "Admin", "System");
   const language = await getServerLanguage();
   const text = (value: string) => translate(language, value);
 
@@ -21,8 +22,8 @@ async function QuestionBanksContent() {
   try {
     [banks, teachers] = await Promise.all([
       serverApis.questions.listBanks(user.role === "Teacher" ? user.id : undefined),
-      user.role === "Admin"
-        ? serverApis.users.list({ pageSize: 100 }).then((result) =>
+      isAdministratorRole(user.role)
+        ? serverApis.users.list({ pageSize: 20 }).then((result) =>
             result.items.filter((item) => item.role === "Teacher" && item.status === "Active"),
           )
         : Promise.resolve([] as UserProfileDto[]),
@@ -41,6 +42,7 @@ async function QuestionBanksContent() {
       <PageHeader
         title={text("Question banks")}
         description={text("Build reusable multiple-choice and fill-in-the-blank questions for examinations.")}
+        mascotSrc="/assets/owlie/code.webp"
       />
       <QuestionBankWorkspace initialItems={items} userId={user.id} role={role} teachers={teachers} />
     </section>

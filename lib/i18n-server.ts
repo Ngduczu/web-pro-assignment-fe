@@ -42,6 +42,7 @@ const messages: Record<string, [string, string]> = {
   "Student": ["Student", "Học viên"],
   "Teacher": ["Teacher", "Giảng viên"],
   "Admin": ["Admin", "Quản trị viên"],
+  "System": ["System administrator", "Quản trị hệ thống"],
   "Active": ["Active", "Đang hoạt động"],
   "Inactive": ["Inactive", "Chưa kích hoạt"],
   "Disabled": ["Disabled", "Đã vô hiệu hóa"],

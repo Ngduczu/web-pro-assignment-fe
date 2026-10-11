@@ -12,6 +12,7 @@ import { DirectMessageDialog } from "@/components/chat/direct-message-dialog";
 import { useLanguage } from "@/lib/i18n";
 import { HubConnectionState, type HubConnection } from "@microsoft/signalr";
 import { createChatHubConnection } from "@/lib/api/chat-realtime";
+import Image from "next/image";
 
 type RealtimeStatus = "connecting" | "connected" | "disconnected";
 
@@ -67,7 +68,7 @@ export function ChatWorkspace({
     if (pending) return pending;
 
     const request = clientApis.chat
-      .listMessages(roomId, { page: 1, pageSize: 100 })
+      .listMessages(roomId, { page: 1, pageSize: 20 })
       .finally(() => messageLoadsRef.current.delete(roomId));
     messageLoadsRef.current.set(roomId, request);
     return request;
@@ -421,9 +422,7 @@ export function ChatWorkspace({
             </>
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center bg-muted/10 px-6 text-center">
-              <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                <MessageCircle className="size-7" />
-              </div>
+              <Image src="/assets/owlie/owlie-diplomacy.webp" alt="" width={176} height={176} sizes="176px" className="mb-2 size-36 object-contain opacity-60 sm:size-44" />
               <p className="mt-4 font-medium text-foreground">{isVi ? "Tin nhắn của bạn" : "Your messages"}</p>
               <p className="mt-1 max-w-xs text-sm text-muted-foreground">{isVi ? "Chọn một cuộc trò chuyện để xem tin nhắn và tiếp tục trao đổi." : "Select a conversation to view messages and continue chatting."}</p>
             </div>

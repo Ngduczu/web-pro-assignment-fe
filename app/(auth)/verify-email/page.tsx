@@ -14,6 +14,7 @@ import { AuthSubmit } from "@/components/auth/auth-submit";
 import { FormMessage } from "@/components/auth/form-message";
 import { useLanguage } from "@/lib/i18n";
 import { localizeAuthMessage } from "@/lib/auth/localized-message";
+import { RequiredMark } from "@/components/ui/form-field-feedback";
 
 type VerifyEmailValues = z.infer<typeof verifyEmailSchema>;
 
@@ -53,8 +54,8 @@ function VerifyEmailForm() {
     <AuthShell title={t("verifyEmailTitle")} description={t("verifyEmailDescription")} footer={<span>{text.verifiedQuestion} <Link href="/login" className="font-medium text-primary hover:underline">{t("signIn")}</Link></span>}>
       <form className="space-y-5" onSubmit={handleSubmit(onSubmit)} noValidate>
         <FormMessage message={serverError} /><FormMessage message={success ? text[success] : undefined} tone="success" />
-        <div className="space-y-2"><label htmlFor="email" className="text-sm font-medium">{t("email")}</label><input id="email" type="email" {...register("email")} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />{errors.email ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.email.message)}</p> : null}</div>
-        <div className="space-y-2"><label htmlFor="verificationCode" className="text-sm font-medium">{t("verificationCode")}</label><input id="verificationCode" maxLength={6} inputMode="text" {...register("verificationCode", { onChange: (event) => { event.target.value = event.target.value.toUpperCase(); } })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 font-mono tracking-[0.2em] outline-none focus-visible:ring-2 focus-visible:ring-ring" />{errors.verificationCode ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.verificationCode.message)}</p> : null}</div>
+        <div className="space-y-2"><label htmlFor="email" className="text-sm font-medium">{t("email")}<RequiredMark /></label><input id="email" type="email" {...register("email")} className="flex h-10 w-full border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />{errors.email ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.email.message)}</p> : null}</div>
+        <div className="space-y-2"><label htmlFor="verificationCode" className="text-sm font-medium">{t("verificationCode")}<RequiredMark /></label><input id="verificationCode" maxLength={6} inputMode="text" {...register("verificationCode", { onChange: (event) => { event.target.value = event.target.value.toUpperCase(); } })} className="flex h-10 w-full border border-input bg-background px-3 py-2 font-mono tracking-[0.2em] outline-none focus-visible:ring-2 focus-visible:ring-ring" />{errors.verificationCode ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.verificationCode.message)}</p> : null}</div>
         <AuthSubmit loading={isSubmitting}>{t("verifyEmail")}</AuthSubmit>
         <button type="button" disabled={cooldown > 0} onClick={resend} className="w-full text-sm font-medium text-primary hover:underline disabled:pointer-events-none disabled:text-muted-foreground">{cooldown > 0 ? `${text.resendIn} ${cooldown}s` : text.resend}</button>
       </form>

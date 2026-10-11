@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 export function PageHeader({
@@ -7,21 +8,35 @@ export function PageHeader({
   description,
   eyebrow,
   actions,
+  mascotSrc,
 }: {
   title: string;
   description?: string;
   eyebrow?: string;
   actions?: ReactNode;
+  mascotSrc?: string;
 }) {
   return (
-    <header className="relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-xs sm:flex sm:items-end sm:justify-between sm:gap-6 sm:p-7">
+    <header className="relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-xs sm:p-7">
       <div className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-primary/8 blur-3xl" />
-      <div className="max-w-2xl space-y-1.5">
-        {eyebrow ? <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">{eyebrow}</p> : null}
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
-        {description ? <p className="text-sm text-muted-foreground sm:text-base">{description}</p> : null}
+      <div className="relative z-10 flex items-center justify-between gap-4">
+        <div className={cn("min-w-0 max-w-2xl space-y-1.5", mascotSrc && "md:max-w-[calc(100%-9rem)]")}>
+          {eyebrow ? <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">{eyebrow}</p> : null}
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
+          {description ? <p className="text-sm text-muted-foreground sm:text-base">{description}</p> : null}
+        </div>
+        {mascotSrc ? (
+          <Image
+            src={mascotSrc}
+            alt=""
+            width={180}
+            height={180}
+            sizes="180px"
+            className="hidden size-32 shrink-0 object-contain md:block lg:size-36"
+          />
+        ) : null}
       </div>
-      {actions ? <div className="relative mt-5 flex flex-wrap gap-2 sm:mt-0">{actions}</div> : null}
+      {actions ? <div className="relative z-10 mt-6 flex flex-wrap items-center gap-3">{actions}</div> : null}
     </header>
   );
 }
@@ -41,20 +56,25 @@ export function PageSection({
 }) {
   return (
     <section className={cn("space-y-4 rounded-2xl border border-border bg-card p-5 shadow-xs sm:p-6", className)}>
-      <div className="flex items-end justify-between gap-4">
-        <div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
           {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
         </div>
-        {action}
+        {action ? <div className="flex shrink-0 flex-wrap items-center gap-2">{action}</div> : null}
       </div>
       {children}
     </section>
   );
 }
 
-export function EmptyState({ children }: { children: ReactNode }) {
-  return <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">{children}</div>;
+export function EmptyState({ children, mascotSrc }: { children: ReactNode; mascotSrc?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground sm:flex-row sm:gap-4 sm:py-5">
+      {mascotSrc ? <Image src={mascotSrc} alt="" width={88} height={88} sizes="88px" className="size-20 shrink-0 object-contain" /> : null}
+      <div>{children}</div>
+    </div>
+  );
 }
 
 export function StatRow({ stats }: { stats: { label: string; value: string | number }[] }) {

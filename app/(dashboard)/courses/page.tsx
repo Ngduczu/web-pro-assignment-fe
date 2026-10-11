@@ -4,19 +4,22 @@ import { connection } from "next/server";
 import { ArrowUpRight, BookOpen, CalendarDays, Search, Users } from "lucide-react";
 import { requireAuth } from "@/lib/auth/session";
 import { serverApis } from "@/lib/api/server-apis";
-import type { CourseDto, CourseStatus, EnrollmentDto, UserProfileDto } from "@/types/api";
+import type { CourseDto, CourseStatus, EnrollmentDto, Role, UserProfileDto } from "@/types/api";
 import { CourseEnrollmentAction } from "@/components/courses/course-enrollment-action";
 import { CourseCreateForm } from "@/components/courses/course-create-form";
 import { DashboardSkeleton } from "@/components/loading-skeleton";
 import { getServerLanguage, translate } from "@/lib/i18n-server";
 import { AlertBanner, EmptyState, PageHeader, PageSection } from "@/components/ui/page-chrome";
+import { PaginatedChildren } from "@/components/ui/paginated-list";
+import { isAdministratorRole } from "@/lib/auth/roles";
+import { AreaRefreshButton } from "@/components/ui/area-refresh-button";
 
 function formatDate(value: string, language: "en" | "vi") {
   return new Intl.DateTimeFormat(language === "vi" ? "vi-VN" : "en", { dateStyle: "medium" }).format(new Date(value));
 }
 
 async function loadCourses(
-  role: string,
+  role: Role,
   userId: string,
   tab: "all" | "available" | "waiting" | "mine",
   search?: string,
@@ -29,7 +32,7 @@ async function loadCourses(
         ? serverApis.courses.listMine()
         : tab === "waiting"
           ? Promise.resolve([] as CourseDto[])
-          : serverApis.courses.list({ search, status: "Open", pageSize: 100 }).then((result) => result.items),
+          : serverApis.courses.list({ search, status: "Open", pageSize: 20 }).then((result) => result.items),
       serverApis.enrollments.listMine(),
     ]);
     const normalizedSearch = search?.trim().toLocaleLowerCase();
@@ -57,11 +60,11 @@ async function loadCourses(
       status,
       teacherId: role === "Teacher" && tab === "mine" ? userId : undefined,
       includeDeleted,
-      pageSize: 100,
+      pageSize: 20,
     }),
-    role === "Admin"
+    isAdministratorRole(role)
       ? serverApis.users
-          .list({ pageSize: 100 })
+          .list({ pageSize: 20 })
           .then((result) => result.items.filter((candidate) => candidate.role === "Teacher" && candidate.status === "Active"))
       : Promise.resolve([] as UserProfileDto[]),
   ]);
@@ -113,11 +116,13 @@ function CourseCard({
   enrollment,
   language,
   canEnroll,
+  showCourseLink,
 }: {
   course: CourseDto;
   enrollment?: EnrollmentDto;
   language: "en" | "vi";
   canEnroll: boolean;
+  showCourseLink: boolean;
 }) {
   const isOpen = course.status === "Open";
   return (
@@ -151,7 +156,7 @@ function CourseCard({
         <div className="mt-auto grid grid-cols-2 gap-3 border-t border-border pt-4">
           <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
             <Users className="size-4 shrink-0 text-primary/80" aria-hidden="true" />
-            <span className="truncate">{translate(language, "Capacity")} <span className="font-semibold text-foreground">{course.maxStudents}</span></span>
+            <span className="truncate"><span className="sr-only">{translate(language, "Capacity")} </span><span className="font-semibold text-foreground">{course.acceptedStudentCount}/{course.maxStudents}</span></span>
           </div>
           <div className="flex min-w-0 items-center justify-end gap-2 text-xs text-muted-foreground">
             <CalendarDays className="size-4 shrink-0 text-primary/80" aria-hidden="true" />
@@ -159,11 +164,13 @@ function CourseCard({
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-          <Link href={`/courses/${course.id}`} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-            {translate(language, "View course")}
-            <ArrowUpRight className="size-4" aria-hidden="true" />
-          </Link>
+        <div className={`mt-4 flex flex-wrap items-center gap-3 ${showCourseLink ? "justify-between" : "justify-end"}`}>
+          {showCourseLink ? (
+            <Link href={`/courses/${course.id}`} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+              {translate(language, "View course")}
+              <ArrowUpRight className="size-4" aria-hidden="true" />
+            </Link>
+          ) : null}
           {canEnroll && !course.deletedAt ? (
             <CourseEnrollmentAction courseId={course.id} enrollment={enrollment} courseStatus={course.status} compact />
           ) : null}
@@ -207,15 +214,8 @@ async function CoursesContent({ searchParams }: CoursesPageProps) {
           : user.role === "Teacher"
             ? (language === "vi" ? "Tổ chức các khóa học bạn phụ trách và quản lý nội dung giảng dạy." : "Organize your assigned courses and manage teaching content.")
             : (language === "vi" ? "Theo dõi danh mục khóa học và trạng thái vận hành trên hệ thống." : "Oversee the course catalog and its operational status.")}
-        actions={
-          user.role !== "Student" ? (
-            <CourseCreateForm
-              role={user.role}
-              teacherId={user.role === "Teacher" ? user.id : undefined}
-              teachers={data.teachers ?? []}
-            />
-          ) : undefined
-        }
+          mascotSrc={user.role === "Student" ? "/assets/owlie/peek.webp" : user.role === "Teacher" ? "/assets/owlie/teach.webp" : "/assets/owlie/owlie-leader.webp"}
+          actions={<AreaRefreshButton label={language === "vi" ? "Làm mới khóa học" : "Refresh courses"} loadingLabel={language === "vi" ? "Đang làm mới..." : "Refreshing..."} />}
       />
 
       {user.role === "Student" ? (
@@ -238,6 +238,13 @@ async function CoursesContent({ searchParams }: CoursesPageProps) {
       ) : null}
 
       <PageSection
+        action={user.role !== "Student" ? (
+          <CourseCreateForm
+            role={user.role}
+            teacherId={user.role === "Teacher" ? user.id : undefined}
+            teachers={data.teachers ?? []}
+          />
+        ) : undefined}
         title={user.role === "Student"
           ? tab === "mine"
             ? (language === "vi" ? "Khóa học của tôi" : "My courses")
@@ -290,16 +297,16 @@ async function CoursesContent({ searchParams }: CoursesPageProps) {
           !data.enrollments.length ? (
             <EmptyState>{language === "vi" ? "Bạn chưa có khóa học nào đang chờ duyệt." : "You have no courses awaiting approval."}</EmptyState>
           ) : (
-            <div className="space-y-3">
+            <PaginatedChildren listClassName="space-y-3" resetKey={`${tab}:${query.search ?? ""}`}>
               {data.enrollments.map((enrollment) => (
                 <WaitingEnrollmentCard key={enrollment.id} enrollment={enrollment} language={language} />
               ))}
-            </div>
+            </PaginatedChildren>
           )
         ) : !data.courses.length ? (
           <EmptyState>{text("No courses are available for your account yet.")}</EmptyState>
         ) : (
-          <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+          <PaginatedChildren listClassName="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3" resetKey={`${tab}:${query.search ?? ""}:${status ?? ""}:${includeDeleted}`}>
             {data.courses.map((course) => (
               <CourseCard
                 key={course.id}
@@ -307,9 +314,10 @@ async function CoursesContent({ searchParams }: CoursesPageProps) {
                 enrollment={enrollmentsByCourse.get(course.id)}
                 language={language}
                 canEnroll={user.role === "Student"}
+                showCourseLink={user.role !== "Student" || tab === "mine"}
               />
             ))}
-          </div>
+          </PaginatedChildren>
         )}
       </PageSection>
     </section>

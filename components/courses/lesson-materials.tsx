@@ -7,10 +7,12 @@ import { ApiError } from "@/lib/api/errors";
 import { clientApis } from "@/lib/api/client-apis";
 import { useLanguage } from "@/lib/i18n";
 import type { MaterialDto } from "@/types/api";
+import { PaginatedChildren } from "@/components/ui/paginated-list";
+import { AreaRefreshButton } from "@/components/ui/area-refresh-button";
 
 const copy = {
-  en: { title: "Materials", description: "Files attached to this lesson.", upload: "Upload material", uploading: "Uploading...", empty: "No materials are attached yet.", working: "Working...", preview: "Preview", closePreview: "Close preview", download: "Download", remove: "Remove", removeConfirm: "Remove this material?", downloadError: "Unable to download this material.", uploadError: "Unable to upload this material.", removeError: "Unable to remove this material.", fileTooLarge: "The material must be 20 MB or smaller." },
-  vi: { title: "Tài liệu", description: "Các tệp được đính kèm vào bài học này.", upload: "Tải tài liệu lên", uploading: "Đang tải lên...", empty: "Bài học chưa có tài liệu đính kèm.", working: "Đang xử lý...", preview: "Xem trước", closePreview: "Đóng bản xem trước", download: "Tải xuống", remove: "Xóa", removeConfirm: "Xóa tài liệu này?", downloadError: "Không thể tải tài liệu này xuống.", uploadError: "Không thể tải tài liệu này lên.", removeError: "Không thể xóa tài liệu này.", fileTooLarge: "Tài liệu không được vượt quá 20 MB." },
+  en: { title: "Materials", description: "Files attached to this lesson.", upload: "Upload material", uploading: "Uploading...", empty: "No materials are attached yet.", working: "Working...", preview: "Preview", closePreview: "Close preview", download: "Download", remove: "Remove", removeConfirm: "Remove this material?", downloadError: "Unable to download this material.", uploadError: "Unable to upload this material.", removeError: "Unable to remove this material.", fileTooLarge: "The material must be 20 MB or smaller.", refresh: "Refresh materials", refreshing: "Refreshing...", refreshError: "Unable to refresh materials." },
+  vi: { title: "Tài liệu", description: "Các tệp được đính kèm vào bài học này.", upload: "Tải tài liệu lên", uploading: "Đang tải lên...", empty: "Bài học chưa có tài liệu đính kèm.", working: "Đang xử lý...", preview: "Xem trước", closePreview: "Đóng bản xem trước", download: "Tải xuống", remove: "Xóa", removeConfirm: "Xóa tài liệu này?", downloadError: "Không thể tải tài liệu này xuống.", uploadError: "Không thể tải tài liệu này lên.", removeError: "Không thể xóa tài liệu này.", fileTooLarge: "Tài liệu không được vượt quá 20 MB.", refresh: "Làm mới tài liệu", refreshing: "Đang làm mới...", refreshError: "Không thể làm mới danh sách tài liệu." },
 };
 
 type MaterialPreview = { name: string; contentType: string; url: string };
@@ -29,6 +31,18 @@ export function LessonMaterials({ lessonId, materials: initialMaterials, canMana
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string>();
   const [preview, setPreview] = useState<MaterialPreview>();
+
+  async function refreshMaterials() {
+    setBusyId("refresh");
+    setError(undefined);
+    try {
+      setMaterials(await clientApis.lessons.listMaterials(lessonId));
+    } catch (caught) {
+      setError(language === "en" && caught instanceof ApiError ? caught.detail : text.refreshError);
+    } finally {
+      setBusyId(undefined);
+    }
+  }
 
   useEffect(() => {
     const url = preview?.url;
@@ -111,10 +125,10 @@ export function LessonMaterials({ lessonId, materials: initialMaterials, canMana
       <section className="min-w-0 rounded-2xl border border-border bg-card p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div><h2 className="text-sm font-semibold">{text.title}</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">{text.description}</p></div>
-          {canManage ? <label className="inline-flex min-h-9 cursor-pointer items-center rounded-lg border border-border px-3 text-xs font-semibold transition-colors hover:bg-muted"><input type="file" className="sr-only" onChange={upload} disabled={uploading} />{uploading ? text.uploading : text.upload}</label> : null}
+          <div className="flex flex-wrap gap-2"><AreaRefreshButton label={text.refresh} loadingLabel={text.refreshing} onRefresh={refreshMaterials} disabled={Boolean(busyId) || uploading || Boolean(preview)} />{canManage ? <label className="inline-flex min-h-9 cursor-pointer items-center rounded-lg border border-border px-3 text-xs font-semibold transition-colors hover:bg-muted"><input type="file" className="sr-only" onChange={upload} disabled={uploading} />{uploading ? text.uploading : text.upload}</label> : null}</div>
         </div>
         {error ? <p role="alert" className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p> : null}
-        {!materials.length ? <div className="mt-4 rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">{text.empty}</div> : <ul className="mt-4 space-y-2">{materials.map((material) => <li key={material.id} className="min-w-0 rounded-xl border border-border/80 p-3">
+        {!materials.length ? <div className="mt-4 rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">{text.empty}</div> : <PaginatedChildren as="ul" listClassName="mt-4 space-y-2">{materials.map((material) => <li key={material.id} className="min-w-0 rounded-xl border border-border/80 p-3">
           <p className="wrap-break-word text-sm font-medium">{material.fileName}</p>
           <p className="mt-1 text-xs text-muted-foreground">{material.contentType} · {fileSize(material.fileSize)}</p>
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -122,7 +136,7 @@ export function LessonMaterials({ lessonId, materials: initialMaterials, canMana
             <button type="button" onClick={() => download(material)} disabled={busyId === material.id} className="inline-flex min-h-8 items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-50"><Download className="size-3.5" />{text.download}</button>
             {canManage ? <button type="button" onClick={() => remove(material)} disabled={busyId === material.id} className="min-h-8 text-xs text-destructive hover:underline disabled:opacity-50">{text.remove}</button> : null}
           </div>
-        </li>)}</ul>}
+        </li>)}</PaginatedChildren>}
       </section>
 
       {preview ? <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 p-2 backdrop-blur-sm sm:p-6" role="dialog" aria-modal="true" aria-labelledby="lesson-material-preview-title">

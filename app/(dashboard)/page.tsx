@@ -10,7 +10,7 @@ export default async function DashboardPage() {
   await connection();
   const { user } = await requireAuth();
 
-  if (user.role === "Admin") return <AdminHome />;
+  if (user.role === "Admin" || user.role === "System") return <AdminHome />;
   if (user.role === "Teacher") return <TeacherHome />;
   return <StudentHome />;
 }

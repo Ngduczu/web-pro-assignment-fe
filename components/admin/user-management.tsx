@@ -7,6 +7,9 @@ import { ApiError } from "@/lib/api/errors";
 import { clientApis } from "@/lib/api/client-apis";
 import type { AccountStatus, Role, UserProfileDto } from "@/types/api";
 import { useLanguage } from "@/lib/i18n";
+import { FieldError, RequiredMark, ValidatedForm } from "@/components/ui/form-field-feedback";
+import { PaginationControls } from "@/components/ui/paginated-list";
+import { AreaRefreshButton } from "@/components/ui/area-refresh-button";
 
 const copy = {
   en: {
@@ -36,6 +39,7 @@ const copy = {
     student: "Student",
     teacher: "Teacher",
     admin: "Admin",
+    system: "System",
     cancel: "Cancel",
     close: "Close",
     saving: "Saving...",
@@ -43,6 +47,9 @@ const copy = {
     createUserSubmit: "Create user",
     saveError: "Unable to save user.",
     statusError: "Unable to update account status.",
+    refresh: "Refresh users",
+    refreshing: "Refreshing...",
+    refreshError: "Unable to refresh users.",
   },
   vi: {
     addUser: "Thêm người dùng",
@@ -71,6 +78,7 @@ const copy = {
     student: "Học viên",
     teacher: "Giảng viên",
     admin: "Quản trị viên",
+    system: "Quản trị hệ thống",
     cancel: "Hủy",
     close: "Đóng",
     saving: "Đang lưu...",
@@ -78,24 +86,37 @@ const copy = {
     createUserSubmit: "Tạo người dùng",
     saveError: "Không thể lưu thông tin người dùng.",
     statusError: "Không thể cập nhật trạng thái tài khoản.",
+    refresh: "Làm mới người dùng",
+    refreshing: "Đang làm mới...",
+    refreshError: "Không thể làm mới danh sách người dùng.",
   },
 };
 
 export function UserManagement({
   initialUsers,
   total,
+  page,
   search,
+  filterRole,
+  filterStatus,
+  actorRole,
   embedded = false,
 }: {
   initialUsers: UserProfileDto[];
   total: number;
+  page: number;
   search: string;
+  filterRole?: Role;
+  filterStatus?: AccountStatus;
+  actorRole: "Admin" | "System";
   embedded?: boolean;
 }) {
   const router = useRouter();
   const { language } = useLanguage();
   const text = copy[language];
   const [users, setUsers] = useState(initialUsers);
+  const [currentTotal, setCurrentTotal] = useState(total);
+  const [refreshError, setRefreshError] = useState<string>();
   const [open, setOpen] = useState(false);
   const [statusDialogUser, setStatusDialogUser] = useState<UserProfileDto>();
   const [editing, setEditing] = useState<UserProfileDto>();
@@ -106,6 +127,18 @@ export function UserManagement({
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>("Student");
+  const isSystem = actorRole === "System";
+
+  async function refreshUsers() {
+    setRefreshError(undefined);
+    try {
+      const result = await clientApis.users.list({ search: search || undefined, role: filterRole, status: filterStatus, page, pageSize: 20 });
+      setUsers(result.items);
+      setCurrentTotal(result.totalCount);
+    } catch (caught) {
+      setRefreshError(language === "en" && caught instanceof ApiError ? caught.detail : text.refreshError);
+    }
+  }
 
   function startCreate() {
     setEditing(undefined);
@@ -141,15 +174,15 @@ export function UserManagement({
         });
         setUsers((current) => current.map((item) => (item.id === updated.id ? updated : item)));
       } else {
-        const created = await clientApis.users.create({
+        await clientApis.users.create({
           email,
           fullName,
           phone: phone || null,
           password,
           role,
         });
-        setUsers((current) => [created, ...current]);
       }
+      await refreshUsers();
       setOpen(false);
       router.refresh();
     } catch (caught) {
@@ -165,6 +198,7 @@ export function UserManagement({
     try {
       const updated = await clientApis.users.updateStatus(user.id, { status });
       setUsers((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      await refreshUsers();
       setStatusDialogUser(undefined);
     } catch (caught) {
       setError(language === "en" && caught instanceof ApiError ? caught.detail : text.statusError);
@@ -190,6 +224,8 @@ export function UserManagement({
     switch (r) {
       case "Admin":
         return <span className="inline-flex items-center gap-1 rounded-md border border-purple-500/20 bg-purple-500/10 px-2 py-0.5 text-xs font-medium text-purple-700 dark:text-purple-300"><Shield className="size-3" />{text.admin}</span>;
+      case "System":
+        return <span className="inline-flex items-center gap-1 rounded-md border border-primary/25 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"><Shield className="size-3" />{text.system}</span>;
       case "Teacher":
         return <span className="inline-flex items-center rounded-md border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-300">{text.teacher}</span>;
       case "Student":
@@ -214,9 +250,11 @@ export function UserManagement({
             <div>
               <h2 className="text-xl font-semibold tracking-tight">{text.directory}</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                {text.accountsFound(total, search)}
+                {text.accountsFound(currentTotal, search)}
               </p>
             </div>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+            <AreaRefreshButton label={text.refresh} loadingLabel={text.refreshing} onRefresh={refreshUsers} disabled={busy || open || Boolean(statusDialogUser)} />
             <button
               type="button"
               onClick={startCreate}
@@ -225,7 +263,10 @@ export function UserManagement({
               <Plus className="size-4" />
               {text.addUser}
             </button>
+            </div>
           </div>
+
+          {refreshError ? <p role="alert" className="border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{refreshError}</p> : null}
 
           {error ? (
             <p className="border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
@@ -239,7 +280,7 @@ export function UserManagement({
             </p>
           ) : (
             <div className="overflow-x-auto border border-border bg-card">
-              <table className="w-full min-w-[50rem] text-left text-sm">
+              <table className="w-full min-w-200 text-left text-sm">
                 <thead className="border-b border-border bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground">
                   <tr>
                     <th className="px-4 py-3 font-medium">{text.user}</th>
@@ -267,21 +308,21 @@ export function UserManagement({
                       <td className="px-4 py-3.5">{statusBadge(user.status)}</td>
                       <td className="px-4 py-3.5">
                         <div className="flex justify-end gap-2">
-                          <button
+                          {(isSystem ? user.role !== "System" : user.role === "Student" || user.role === "Teacher") ? <button
                             type="button"
                             onClick={() => startEdit(user)}
                             className="border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted"
                           >
                             {text.edit}
-                          </button>
-                          <button
+                          </button> : null}
+                          {(isSystem ? user.role !== "System" : user.role === "Student" || user.role === "Teacher") ? <button
                             type="button"
                             onClick={() => setStatusDialogUser(user)}
                             disabled={busy}
                             className="border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50"
                           >
                             {text.changeStatus}
-                          </button>
+                          </button> : null}
                         </div>
                       </td>
                     </tr>
@@ -290,6 +331,18 @@ export function UserManagement({
               </table>
             </div>
           )}
+          {currentTotal > 0 ? <PaginationControls
+            page={page}
+            totalItems={currentTotal}
+            onPageChange={(nextPage) => {
+              const params = new URLSearchParams();
+              if (search) params.set("search", search);
+              if (filterRole) params.set("role", filterRole);
+              if (filterStatus) params.set("status", filterStatus);
+              params.set("page", String(nextPage));
+              router.push(`/admin?${params.toString()}`);
+            }}
+          /> : null}
         </div>
       )}
 
@@ -303,7 +356,7 @@ export function UserManagement({
           }}
         >
           <div className="absolute inset-0 bg-foreground/30 backdrop-blur-[3px]" />
-          <div className="relative w-full max-w-sm border border-border bg-card p-6 shadow-2xl">
+          <div className="relative w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-lg font-semibold">{text.changeStatus}</h2>
@@ -318,7 +371,7 @@ export function UserManagement({
               </button>
             </div>
             <div className="mt-5 space-y-2">
-              {(["Active", "Inactive", "Disabled", "Banned"] as AccountStatus[]).map((status) => (
+              {(["Active", "Disabled", "Banned"] as AccountStatus[]).map((status) => (
                 <button
                   key={status}
                   type="button"
@@ -349,11 +402,11 @@ export function UserManagement({
           }}
         >
           <div className="absolute inset-0 bg-foreground/30 backdrop-blur-[3px]" />
-          <form
+          <ValidatedForm
             onSubmit={submit}
             role="dialog"
             aria-modal="true"
-            className="relative max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto border border-border bg-card p-6 shadow-2xl"
+            className="relative max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-2xl"
           >
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -375,36 +428,42 @@ export function UserManagement({
             </div>
             <div className="mt-6 grid gap-4">
               <label className="grid gap-2 text-sm font-medium">
-                {text.fullName}
+                <span>{text.fullName}<RequiredMark /></span>
                 <input
                   required
+                  data-field-error="user-full-name"
                   value={fullName}
                   onChange={(event) => setFullName(event.target.value)}
                   className="h-10 border border-input bg-background px-3 font-normal outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
+                <FieldError field="user-full-name" />
               </label>
               {!editing ? (
                 <label className="grid gap-2 text-sm font-medium">
-                  {text.email}
+                  <span>{text.email}<RequiredMark /></span>
                   <input
                     required
                     type="email"
+                    data-field-error="user-email"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     className="h-10 border border-input bg-background px-3 font-normal outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
+                  <FieldError field="user-email" />
                 </label>
               ) : null}
               {!editing ? (
                 <label className="grid gap-2 text-sm font-medium">
-                  {text.tempPassword}
+                  <span>{text.tempPassword}<RequiredMark /></span>
                   <input
                     required
                     type="password"
+                    data-field-error="user-temp-password"
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                     className="h-10 border border-input bg-background px-3 font-normal outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
+                  <FieldError field="user-temp-password" />
                 </label>
               ) : null}
               <label className="grid gap-2 text-sm font-medium">
@@ -424,7 +483,7 @@ export function UserManagement({
                 >
                   <option value="Student">{text.student}</option>
                   <option value="Teacher">{text.teacher}</option>
-                  <option value="Admin">{text.admin}</option>
+                  {isSystem ? <option value="Admin">{text.admin}</option> : null}
                 </select>
               </label>
               {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -445,7 +504,7 @@ export function UserManagement({
                 {busy ? text.saving : editing ? text.saveChanges : text.createUserSubmit}
               </button>
             </div>
-          </form>
+          </ValidatedForm>
         </div>
       ) : null}
     </>

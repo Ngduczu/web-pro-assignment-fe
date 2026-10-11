@@ -22,7 +22,7 @@ async function ExamsContent() {
     courses =
       user.role === "Student"
         ? await serverApis.courses.listMine()
-        : (await serverApis.courses.list({ teacherId: user.role === "Teacher" ? user.id : undefined, pageSize: 100 })).items;
+        : (await serverApis.courses.list({ teacherId: user.role === "Teacher" ? user.id : undefined, pageSize: 20 })).items;
     settled = await Promise.allSettled(
       courses.map(async (course) => ({
         course,
@@ -52,11 +52,12 @@ async function ExamsContent() {
             ? text("Review your schedule, enter active examinations and revisit released results.")
             : text("Create, schedule and control examinations across your courses.")
         }
+        mascotSrc={user.role === "Student" ? "/assets/owlie/think.webp" : "/assets/owlie/teach.webp"}
       />
       {settled.some((result) => result.status === "rejected") ? (
         <AlertBanner tone="warning">{text("Some course examinations could not be loaded.")}</AlertBanner>
       ) : null}
-      <ExaminationsWorkspace initialItems={items} courses={courses as CourseDto[]} banks={banks} role={user.role} />
+      <ExaminationsWorkspace initialItems={items} courses={courses as CourseDto[]} banks={banks} role={user.role} userId={user.id} />
     </section>
   );
 }

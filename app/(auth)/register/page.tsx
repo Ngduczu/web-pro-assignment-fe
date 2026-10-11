@@ -15,6 +15,7 @@ import { PasswordInput } from "@/components/auth/password-input";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/lib/i18n";
 import { localizeAuthMessage } from "@/lib/auth/localized-message";
+import { RequiredMark } from "@/components/ui/form-field-feedback";
 
 type RegisterValues = z.infer<typeof registerSchema>;
 
@@ -47,13 +48,13 @@ export default function RegisterPage() {
   }
 
   return (
-    <AuthShell title={t("registerTitle")} description={t("registerDescription")} footer={<span>{t("alreadyHaveAccount")} <Link href="/login" className="font-medium text-primary hover:underline">{t("signIn")}</Link></span>}>
+    <AuthShell title={t("registerTitle")} description={t("registerDescription")} mascotSrc="/assets/owlie/cheer.webp" footer={<span>{t("alreadyHaveAccount")} <Link href="/login" className="font-medium text-primary hover:underline">{t("signIn")}</Link></span>}>
       <form className="space-y-5" onSubmit={handleSubmit(onSubmit)} noValidate>
         <FormMessage message={serverError} />
         <FormMessage message={success} tone="success" />
-        <div className="space-y-2"><label htmlFor="email" className="text-sm font-medium">{t("email")}</label><input id="email" type="email" autoComplete="email" {...register("email")} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />{errors.email ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.email.message)}</p> : null}</div>
-        <div className="space-y-2"><label htmlFor="password" className="text-sm font-medium">{t("password")}</label><PasswordInput id="password" {...passwordField} value={password} autoComplete="new-password" />{errors.password ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.password.message)}</p> : null}</div>
-        <div className="space-y-2"><label htmlFor="passwordConfirm" className="text-sm font-medium">{t("confirmPassword")}</label><PasswordInput id="passwordConfirm" {...confirmField} value={passwordConfirm} placeholder={t("confirmPassword")} autoComplete="new-password" />{errors.passwordConfirm ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.passwordConfirm.message)}</p> : null}</div>
+        <div className="space-y-2"><label htmlFor="email" className="text-sm font-medium">{t("email")}<RequiredMark /></label><input id="email" type="email" autoComplete="email" {...register("email")} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />{errors.email ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.email.message)}</p> : null}</div>
+        <div className="space-y-2"><label htmlFor="password" className="text-sm font-medium">{t("password")}<RequiredMark /></label><PasswordInput id="password" {...passwordField} value={password} autoComplete="new-password" />{errors.password ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.password.message)}</p> : null}</div>
+        <div className="space-y-2"><label htmlFor="passwordConfirm" className="text-sm font-medium">{t("confirmPassword")}<RequiredMark /></label><PasswordInput id="passwordConfirm" {...confirmField} value={passwordConfirm} placeholder={t("confirmPassword")} autoComplete="new-password" />{errors.passwordConfirm ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.passwordConfirm.message)}</p> : null}</div>
         <AuthSubmit loading={isSubmitting}>{t("createAccount")}</AuthSubmit>
       </form>
     </AuthShell>

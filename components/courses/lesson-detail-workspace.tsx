@@ -7,8 +7,11 @@ import { ArrowLeft, ArrowRight, BookOpen, Pencil, Trash2, X } from "lucide-react
 import { clientApis } from "@/lib/api/client-apis";
 import { ApiError } from "@/lib/api/errors";
 import { useLanguage } from "@/lib/i18n";
+import { FieldError, RequiredMark, ValidatedForm } from "@/components/ui/form-field-feedback";
 import type { CourseDto, LessonDto, MaterialDto } from "@/types/api";
 import { LessonMaterials } from "@/components/courses/lesson-materials";
+import { PaginatedChildren } from "@/components/ui/paginated-list";
+import { AreaRefreshButton } from "@/components/ui/area-refresh-button";
 
 const copy = {
   en: {
@@ -114,6 +117,19 @@ export function LessonDetailWorkspace({
     setEditing(true);
   }
 
+  async function refreshLesson() {
+    try {
+      const updated = await clientApis.lessons.get(lesson.id);
+      setLesson(updated);
+      setName(updated.name);
+      setContent(updated.content ?? "");
+      setStatus(updated.status);
+      setError(undefined);
+    } catch (caught) {
+      setError(language === "en" && caught instanceof ApiError ? caught.detail : text.updateFailed);
+    }
+  }
+
   async function save(event: React.FormEvent) {
     event.preventDefault();
     setSaving(true);
@@ -183,8 +199,10 @@ export function LessonDetailWorkspace({
           </div>
           <h1 className="wrap-break-word text-3xl font-semibold tracking-tight sm:text-4xl">{lesson.name}</h1>
         </div>
-        {canManage ? (
-          <div className="flex shrink-0 flex-wrap gap-2">
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <AreaRefreshButton label={language === "vi" ? "Làm mới bài học" : "Refresh lesson"} loadingLabel={language === "vi" ? "Đang làm mới..." : "Refreshing..."} onRefresh={refreshLesson} disabled={saving || deleting || editing} />
+          {canManage ? (
+            <>
             <button
               type="button"
               onClick={openEditor}
@@ -202,8 +220,9 @@ export function LessonDetailWorkspace({
               <Trash2 className="size-4" />
               {deleting ? text.deleting : text.delete}
             </button>
-          </div>
-        ) : null}
+            </>
+          ) : null}
+        </div>
       </header>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_18rem] xl:items-start">
@@ -220,7 +239,7 @@ export function LessonDetailWorkspace({
         <aside className="min-w-0 space-y-5 xl:sticky xl:top-6">
           <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
             <h2 className="mb-3 text-sm font-semibold">{text.courseLessons}</h2>
-            <ol className="space-y-1">
+            <PaginatedChildren as="ol" listClassName="space-y-1">
               {orderedLessons.map((item, index) => (
                 <li key={item.id}>
                   <Link
@@ -233,7 +252,7 @@ export function LessonDetailWorkspace({
                   </Link>
                 </li>
               ))}
-            </ol>
+            </PaginatedChildren>
           </section>
           <LessonMaterials lessonId={lesson.id} materials={materials} canManage={canManage} />
         </aside>
@@ -262,9 +281,9 @@ export function LessonDetailWorkspace({
             onClick={() => setEditing(false)}
             aria-label={text.cancel}
           />
-          <form
+          <ValidatedForm
             onSubmit={save}
-            className="relative max-h-[calc(100vh-2rem)] w-full max-w-xl overflow-y-auto border border-border bg-card p-5 shadow-2xl sm:p-6"
+            className="relative max-h-[calc(100vh-2rem)] w-full max-w-xl overflow-y-auto rounded-2xl border border-border bg-card p-5 shadow-2xl sm:p-6"
           >
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -282,14 +301,16 @@ export function LessonDetailWorkspace({
             </div>
             <fieldset disabled={saving} className="mt-6 space-y-4 disabled:opacity-70">
               <label className="grid gap-2 text-sm font-medium">
-                {text.name}
+                <span>{text.name}<RequiredMark /></span>
                 <input
                   required
+                  data-field-error="lesson-edit-name"
                   maxLength={200}
                   value={name}
                   onChange={(event) => setName(event.target.value)}
-                  className="h-10 border border-input bg-background px-3 font-normal"
+                  className="h-10 rounded-xl border border-input bg-background px-3 font-normal"
                 />
+                <FieldError field="lesson-edit-name" />
               </label>
               <label className="grid gap-2 text-sm font-medium">
                 {text.content}
@@ -297,7 +318,7 @@ export function LessonDetailWorkspace({
                   rows={9}
                   value={content}
                   onChange={(event) => setContent(event.target.value)}
-                  className="border border-input bg-background px-3 py-2 font-normal"
+                  className="rounded-xl border border-input bg-background px-3 py-2 font-normal"
                 />
               </label>
               <label className="grid gap-2 text-sm font-medium">
@@ -305,7 +326,7 @@ export function LessonDetailWorkspace({
                 <select
                   value={status}
                   onChange={(event) => setStatus(event.target.value as LessonDto["status"])}
-                  className="h-10 border border-input bg-background px-3 font-normal"
+                  className="h-10 rounded-xl border border-input bg-background px-3 font-normal"
                 >
                   <option value="Draft">{text.draft}</option>
                   <option value="Published">{text.published}</option>
@@ -333,7 +354,7 @@ export function LessonDetailWorkspace({
                 {saving ? text.saving : text.save}
               </button>
             </div>
-          </form>
+          </ValidatedForm>
         </div>
       ) : null}
     </>

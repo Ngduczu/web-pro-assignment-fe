@@ -16,6 +16,7 @@ import { FormMessage } from "@/components/auth/form-message";
 import { PasswordInput } from "@/components/auth/password-input";
 import { useLanguage } from "@/lib/i18n";
 import { localizeAuthMessage } from "@/lib/auth/localized-message";
+import { RequiredMark } from "@/components/ui/form-field-feedback";
 
 type ResetValues = z.infer<typeof resetPasswordSchema>;
 
@@ -47,10 +48,10 @@ function ResetPasswordForm() {
     <AuthShell title={t("resetPasswordTitle")} description={t("resetPasswordDescription")} footer={<span>{text.anotherCode} <Link href="/forgot-password" className="font-medium text-primary hover:underline">{t("requestAnother")}</Link></span>}>
       <form className="space-y-5" onSubmit={handleSubmit(onSubmit)} noValidate>
         <FormMessage message={serverError} /><FormMessage message={success ? text.success : undefined} tone="success" />
-        <div className="space-y-2"><label htmlFor="email" className="text-sm font-medium">{t("email")}</label><input id="email" type="email" {...register("email")} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />{errors.email ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.email.message)}</p> : null}</div>
-        <div className="space-y-2"><label htmlFor="resetCode" className="text-sm font-medium">{t("resetCode")}</label><input id="resetCode" maxLength={6} {...register("resetCode")} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 font-mono tracking-[0.2em] outline-none focus-visible:ring-2 focus-visible:ring-ring" />{errors.resetCode ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.resetCode.message)}</p> : null}</div>
-        <div className="space-y-2"><label htmlFor="newPassword" className="text-sm font-medium">{t("newPassword")}</label><PasswordInput id="newPassword" {...passwordField} value={newPassword} autoComplete="new-password" />{errors.newPassword ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.newPassword.message)}</p> : null}</div>
-        <div className="space-y-2"><label htmlFor="passwordConfirm" className="text-sm font-medium">{text.confirm}</label><PasswordInput id="passwordConfirm" {...confirmField} value={passwordConfirm} placeholder={text.confirm} autoComplete="new-password" />{errors.passwordConfirm ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.passwordConfirm.message)}</p> : null}</div>
+        <div className="space-y-2"><label htmlFor="email" className="text-sm font-medium">{t("email")}<RequiredMark /></label><input id="email" type="email" {...register("email")} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />{errors.email ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.email.message)}</p> : null}</div>
+        <div className="space-y-2"><label htmlFor="resetCode" className="text-sm font-medium">{t("resetCode")}<RequiredMark /></label><input id="resetCode" maxLength={6} {...register("resetCode")} className="flex h-10 w-full border border-input bg-background px-3 py-2 font-mono tracking-[0.2em] outline-none focus-visible:ring-2 focus-visible:ring-ring" />{errors.resetCode ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.resetCode.message)}</p> : null}</div>
+        <div className="space-y-2"><label htmlFor="newPassword" className="text-sm font-medium">{t("newPassword")}<RequiredMark /></label><PasswordInput id="newPassword" {...passwordField} value={newPassword} autoComplete="new-password" />{errors.newPassword ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.newPassword.message)}</p> : null}</div>
+        <div className="space-y-2"><label htmlFor="passwordConfirm" className="text-sm font-medium">{text.confirm}<RequiredMark /></label><PasswordInput id="passwordConfirm" {...confirmField} value={passwordConfirm} placeholder={text.confirm} autoComplete="new-password" />{errors.passwordConfirm ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.passwordConfirm.message)}</p> : null}</div>
         <AuthSubmit loading={isSubmitting}>{t("resetPassword")}</AuthSubmit>
       </form>
     </AuthShell>

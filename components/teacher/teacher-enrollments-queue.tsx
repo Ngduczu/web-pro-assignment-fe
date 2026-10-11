@@ -7,6 +7,7 @@ import { ApiError } from "@/lib/api/errors";
 import { useLanguage } from "@/lib/i18n";
 import type { EnrollmentDto } from "@/types/api";
 import { DividedList, EmptyState, ListRow } from "@/components/ui/page-chrome";
+import { PaginatedChildren } from "@/components/ui/paginated-list";
 
 type TeacherEnrollmentsQueueProps = {
   initialEnrollments: { courseName: string; courseId: string; enrollment: EnrollmentDto }[];
@@ -56,33 +57,35 @@ export function TeacherEnrollmentsQueue({ initialEnrollments }: TeacherEnrollmen
     <div className="space-y-3">
       {error ? <div className="border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div> : null}
       <DividedList>
-        {items.map(({ courseName, enrollment }) => (
-          <ListRow key={enrollment.id}>
-            <div className="min-w-0">
-              <p className="text-xs text-muted-foreground">{courseName}</p>
-              <p className="truncate font-medium">{enrollment.student?.fullName || (isVi ? "Học viên" : "Student")}</p>
-              <p className="truncate text-sm text-muted-foreground">{enrollment.student?.email || enrollment.studentId}</p>
-            </div>
-            <div className="flex shrink-0 gap-2">
-              <button
-                type="button"
-                disabled={busyId === enrollment.id}
-                onClick={() => handleAction(enrollment.id, "accept")}
-                className="h-8 border border-border px-3 text-xs font-medium hover:bg-muted disabled:opacity-50"
-              >
-                {isVi ? "Duyệt" : "Approve"}
-              </button>
-              <button
-                type="button"
-                disabled={busyId === enrollment.id}
-                onClick={() => handleAction(enrollment.id, "reject")}
-                className="h-8 border border-border px-3 text-xs font-medium text-destructive hover:bg-destructive/5 disabled:opacity-50"
-              >
-                {isVi ? "Từ chối" : "Reject"}
-              </button>
-            </div>
-          </ListRow>
-        ))}
+        <PaginatedChildren listClassName="divide-y divide-border">
+          {items.map(({ courseName, enrollment }) => (
+            <ListRow key={enrollment.id}>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">{courseName}</p>
+                <p className="truncate font-medium">{enrollment.student?.fullName || (isVi ? "Học viên" : "Student")}</p>
+                <p className="truncate text-sm text-muted-foreground">{enrollment.student?.email || enrollment.studentId}</p>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <button
+                  type="button"
+                  disabled={busyId === enrollment.id}
+                  onClick={() => handleAction(enrollment.id, "accept")}
+                  className="h-8 border border-border px-3 text-xs font-medium hover:bg-muted disabled:opacity-50"
+                >
+                  {isVi ? "Duyệt" : "Approve"}
+                </button>
+                <button
+                  type="button"
+                  disabled={busyId === enrollment.id}
+                  onClick={() => handleAction(enrollment.id, "reject")}
+                  className="h-8 border border-border px-3 text-xs font-medium text-destructive hover:bg-destructive/5 disabled:opacity-50"
+                >
+                  {isVi ? "Từ chối" : "Reject"}
+                </button>
+              </div>
+            </ListRow>
+          ))}
+        </PaginatedChildren>
       </DividedList>
     </div>
   );

@@ -43,7 +43,7 @@ export default async function CourseDetailPage({ params, searchParams }: { param
       [lessons, exercises, managedEnrollments, examinations, banks] = await Promise.all([
         serverApis.lessons.list(courseId),
         serverApis.assignments.listExercises(courseId),
-        serverApis.enrollments.listByCourse(courseId, { pageSize: 100 }).then((result) => result.items),
+        serverApis.enrollments.listByCourse(courseId, { pageSize: 20 }).then((result) => result.items),
         serverApis.examinations.listByCourse(courseId),
         serverApis.questions.listBanks(user.role === "Teacher" ? user.id : undefined),
       ]);
@@ -67,10 +67,11 @@ export default async function CourseDetailPage({ params, searchParams }: { param
         exercises={exercises}
         examinations={examinations}
         initialTab={initialTab}
+        isStudent={user.role === "Student"}
         canManage={user.role !== "Student"}
         lessonAction={user.role !== "Student" ? <CourseAssessmentActions kind="lesson" course={course} banks={banks} nextLessonOrder={Math.max(0, ...lessons.map((lesson) => lesson.order)) + 1} /> : undefined}
         assignmentAction={user.role !== "Student" ? <CourseAssessmentActions kind="assignment" course={course} banks={banks} nextLessonOrder={Math.max(0, ...lessons.map((lesson) => lesson.order)) + 1} /> : undefined}
-        examinationAction={user.role !== "Student" ? <CourseAssessmentActions kind="examination" course={course} banks={banks} nextLessonOrder={Math.max(0, ...lessons.map((lesson) => lesson.order)) + 1} /> : undefined}
+        examinationAction={user.role === "Teacher" ? <CourseAssessmentActions kind="examination" course={course} banks={banks} nextLessonOrder={Math.max(0, ...lessons.map((lesson) => lesson.order)) + 1} /> : undefined}
         management={user.role !== "Student" ? <CourseManagementPanel course={course} enrollments={managedEnrollments} /> : undefined}
       />}
     </section>

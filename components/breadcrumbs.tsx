@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight, Home } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useLanguage } from "@/lib/i18n";
 
 export function Breadcrumbs() {
@@ -38,13 +37,22 @@ export function Breadcrumbs() {
         const href = `/${segments.slice(0, index + 1).join("/")}`;
         const label = localizedLabels[segment] ?? (segment.length > 18 ? t("details") : segment);
         const isLast = index === segments.length - 1;
+        const isCourseBreadcrumb = segments[0] === "courses" && (index === 1 || index === 2);
+        const courseTab = ({ lessons: "lessons", exercises: "assignments", examinations: "examinations" } as Record<string, string>)[segments[2]];
+        const courseHref = isCourseBreadcrumb && courseTab
+          ? `/courses/${segments[1]}?tab=${encodeURIComponent(courseTab)}`
+          : href;
 
         return (
           <span key={href} className="flex min-w-0 items-center gap-1.5">
             <ChevronRight className="size-3.5 shrink-0" />
-            <Link href={href} className={cn("truncate transition-colors hover:text-primary-foreground", isLast && "font-medium text-primary-foreground")}>
-              {label}
-            </Link>
+            {isLast ? (
+              <span aria-current="page" className="truncate font-medium text-primary-foreground">{label}</span>
+            ) : (
+              <Link href={courseHref} className="truncate transition-colors hover:text-primary-foreground">
+                {label}
+              </Link>
+            )}
           </span>
         );
       })}

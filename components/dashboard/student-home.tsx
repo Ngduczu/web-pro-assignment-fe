@@ -1,9 +1,11 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { requireRole } from "@/lib/auth/session";
 import { serverApis } from "@/lib/api/server-apis";
 import { ApiError } from "@/lib/api/errors";
 import { getServerLanguage, translate } from "@/lib/i18n-server";
+import { cn } from "@/lib/utils";
 import type {
   CourseDto,
   EnrollmentDto,
@@ -17,10 +19,9 @@ import {
   DividedList,
   EmptyState,
   ListRow,
-  PageHeader,
-  PageSection,
   TextLink,
 } from "@/components/ui/page-chrome";
+import { AreaRefreshButton } from "@/components/ui/area-refresh-button";
 
 type StudentExamItem = {
   course: CourseDto;
@@ -132,166 +133,152 @@ export async function StudentHome() {
     .filter((item) => now < new Date(item.examination.startAt).getTime())
     .sort((left, right) => new Date(left.examination.startAt).getTime() - new Date(right.examination.startAt).getTime());
 
+  const examRows = [
+    ...activeExams.map((item) => ({ ...item, active: true })),
+    ...upcomingExams.map((item) => ({ ...item, active: false })),
+  ].slice(0, 4);
+
+  const stats = [
+    { label: text("Courses you are taking"), value: enrollments.filter((e) => e.status === "Accepted").length },
+    { label: text("Assignments due soon"), value: upcomingAssignments.length },
+    { label: text("Examinations coming up"), value: upcomingExams.length + activeExams.length },
+    { label: text("Pending requests"), value: pendingRequestsCount },
+  ];
+
   return (
-    <div className="space-y-6 sm:space-y-8">
-      <PageHeader
-        eyebrow={text("Student workspace")}
-        title={`${text("Welcome back")}, ${user.fullName}`}
-        description={text("Track your assignments, prepare for examinations, and access your course material.")}
-        actions={
-          <>
-            <TextLink href="/courses" variant="primary">{text("Browse courses")}</TextLink>
-            <TextLink href="/exams">{text("View examinations")}</TextLink>
-          </>
-        }
-      />
+    <div className="grid gap-4 lg:grid-cols-12">
+      <section className="flex flex-col justify-between gap-5 rounded-2xl border border-border bg-card p-5 shadow-xs sm:p-6 lg:col-span-7">
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">{text("Student workspace")}</p>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{`${text("Welcome back")}, ${user.fullName}`}</h1>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <AreaRefreshButton label={language === "vi" ? "Làm mới tổng quan" : "Refresh overview"} loadingLabel={language === "vi" ? "Đang làm mới..." : "Refreshing..."} />
+          <TextLink href="/courses" variant="primary">{text("Browse courses")}</TextLink>
+          <TextLink href="/exams">{text("View examinations")}</TextLink>
+        </div>
+      </section>
 
-      {activeExams.length > 0 ? (
-        <PageSection
-          className="border-primary/30"
-          title={text("Examinations currently in progress")}
-          description={text("You have an active examination available to take right now. Enter before the deadline expires.")}
-        >
-          <DividedList>
-            {activeExams.map(({ course, examination, attempt }) => (
-              <ListRow key={examination.id} href={`/courses/${course.id}/examinations/${examination.id}`}>
-                <div>
-                  <p className="text-xs text-muted-foreground">{course.name}</p>
-                  <p className="font-medium">{examination.title}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {examination.durationMinutes} {text("minutes")} · {examination.questionCount} {text("questions")}
-                  </p>
-                </div>
-                <span className="text-sm font-medium text-primary">
-                  {attempt?.status === "InProgress" ? text("Resume exam") : text("Start exam")}
-                </span>
-              </ListRow>
-            ))}
-          </DividedList>
-        </PageSection>
-      ) : null}
+      <div className="grid grid-cols-2 gap-4 lg:col-span-5">
+        {stats.map((stat) => (
+          <div key={stat.label} className="rounded-2xl border border-border bg-card p-4 shadow-xs">
+            <p className="line-clamp-2 text-xs text-muted-foreground sm:text-sm">{stat.label}</p>
+            <p className="mt-2 text-3xl font-semibold tracking-tight">{stat.value}</p>
+          </div>
+        ))}
+      </div>
 
-      <PageSection
-        title={text("Assignments due soon")}
-        description={text("Prioritize the work you still need to submit.")}
-        action={<span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">{upcomingAssignments.length}</span>}
-      >
+      <Tile className="lg:col-span-7" title={text("Assignments due soon")}>
         {!upcomingAssignments.length ? (
           <EmptyState>{text("No upcoming assignments from the available course data.")}</EmptyState>
         ) : (
           <DividedList>
-            {upcomingAssignments.slice(0, 5).map(({ course, exercise, submission }) => {
-              const isSubmitted = submission?.status === "Submitted" || submission?.status === "Graded";
-              const isGraded = submission?.status === "Graded";
+            {upcomingAssignments.slice(0, 4).map(({ course, exercise }) => {
               const isPastDue = exercise.dueAt && new Date(exercise.dueAt).getTime() < now;
-              const status = isGraded
-                ? `${text("Graded")}: ${submission!.grade}/10`
-                : isSubmitted
-                  ? text("Submitted")
-                  : isPastDue
-                    ? text("Overdue")
-                    : text("Pending");
               return (
                 <ListRow key={exercise.id} href={`/courses/${course.id}/exercises/${exercise.id}`}>
-                  <div>
-                    <p className="text-xs text-muted-foreground">{course.name} · {status}</p>
-                    <p className="font-medium">{exercise.title}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {exercise.dueAt ? `${text("Due")} ${dateFormatter.format(new Date(exercise.dueAt))}` : text("No due date")}
+                  <div className="min-w-0">
+                    <p className="truncate text-xs text-muted-foreground">
+                      {course.name} · {isPastDue ? text("Overdue") : text("Pending")}
                     </p>
+                    <p className="truncate font-medium">{exercise.title}</p>
                   </div>
-                  <span className="text-sm text-primary">{isSubmitted ? text("View submission") : text("Open assignment")}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {exercise.dueAt ? dateFormatter.format(new Date(exercise.dueAt)) : text("No due date")}
+                  </span>
                 </ListRow>
               );
             })}
           </DividedList>
         )}
-      </PageSection>
+      </Tile>
 
-      <PageSection
-        title={text("Examinations coming up")}
-        description={text("Check the next scheduled examinations across your courses.")}
+      <Tile
+        className={cn("lg:col-span-5", activeExams.length > 0 && "border-primary/40")}
+        title={activeExams.length > 0 ? text("Examinations currently in progress") : text("Examinations coming up")}
         action={<Link href="/exams" className="text-sm font-medium text-primary hover:underline">{text("View examinations")}</Link>}
       >
-        {!upcomingExams.length ? (
+        {!examRows.length ? (
           <EmptyState>{text("No upcoming examinations from the available course data.")}</EmptyState>
         ) : (
           <DividedList>
-            {upcomingExams.slice(0, 5).map(({ course, examination, attempt }) => {
-              const isFinished = attempt && (attempt.status === "Submitted" || attempt.status === "AutoSubmitted");
-              const hasScore = attempt?.score !== null && attempt?.score !== undefined;
-              return (
-                <ListRow key={examination.id} href={`/courses/${course.id}/examinations/${examination.id}`}>
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      {course.name} · {isFinished ? (hasScore ? `${text("Score")}: ${attempt!.score}/10` : text("Submitted")) : `${examination.durationMinutes} ${text("minutes")}`}
-                    </p>
-                    <p className="font-medium">{examination.title}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {text("Starts")} {dateFormatter.format(new Date(examination.startAt))}
-                    </p>
-                  </div>
-                  <span className="text-sm text-primary">{isFinished ? text("View results") : text("Open examination")}</span>
-                </ListRow>
-              );
-            })}
+            {examRows.map(({ course, examination, attempt, active }) => (
+              <ListRow key={examination.id} href={`/courses/${course.id}/examinations/${examination.id}`}>
+                <div className="min-w-0">
+                  <p className="truncate text-xs text-muted-foreground">
+                    {course.name} · {examination.durationMinutes} {text("minutes")}
+                  </p>
+                  <p className="truncate font-medium">{examination.title}</p>
+                </div>
+                <span className={cn("shrink-0 text-xs", active ? "font-medium text-primary" : "text-muted-foreground")}>
+                  {active
+                    ? attempt?.status === "InProgress" ? text("Resume exam") : text("Start exam")
+                    : dateFormatter.format(new Date(examination.startAt))}
+                </span>
+              </ListRow>
+            ))}
           </DividedList>
         )}
-      </PageSection>
+      </Tile>
 
-      <PageSection
+      <Tile
+        className="lg:col-span-5"
         title={text("Courses you are taking")}
-        description={text("Learning spaces where your enrollment is confirmed.")}
         action={<Link href="/courses" className="text-sm font-medium text-primary hover:underline">{text("Browse courses")}</Link>}
       >
         {!courses.length ? (
           <EmptyState>{text("No courses are available yet.")}</EmptyState>
         ) : (
           <DividedList>
-            {courses.map((course) => (
+            {courses.slice(0, 4).map((course) => (
               <ListRow key={course.id} href={`/courses/${course.id}`}>
                 <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">{text(course.status)}</p>
-                  <p className="font-medium">{course.name}</p>
+                  <p className="truncate font-medium">{course.name}</p>
                   <p className="line-clamp-1 text-sm text-muted-foreground">{course.description || text("No description provided.")}</p>
                 </div>
-                <span className="shrink-0 text-sm text-primary">{text("Open courses")}</span>
               </ListRow>
             ))}
           </DividedList>
         )}
-      </PageSection>
+      </Tile>
 
-        {gradedSubmissions.length > 0 ? (
-          <PageSection
-            title={text("Assignment results")}
-            description={text("Your latest grades and teacher feedback.")}
-          >
-            <DividedList>
-              {gradedSubmissions.slice(0, 5).map(({ course, exercise, submission }) => (
-                <ListRow key={exercise.id} href={`/courses/${course.id}/exercises/${exercise.id}`}>
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">{course.name}</p>
-                    <p className="font-medium">{exercise.title}</p>
-                    <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                      {submission!.feedback || text("No written feedback was provided.")}
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-lg font-semibold text-primary">{submission!.grade}/10</p>
-                    <span className="text-sm text-primary">{text("View details")}</span>
-                  </div>
-                </ListRow>
-              ))}
-            </DividedList>
-          </PageSection>
-        ) : null}
-
-      {pendingRequestsCount > 0 ? (
-        <AlertBanner tone="warning">
-          {text("Pending requests")}: {pendingRequestsCount} {text("course enrollment request(s) waiting for teacher approval.")}
-        </AlertBanner>
+      {gradedSubmissions.length > 0 ? (
+        <Tile className="lg:col-span-7" title={text("Assignment results")}>
+          <DividedList>
+            {gradedSubmissions.slice(0, 4).map(({ course, exercise, submission }) => (
+              <ListRow key={exercise.id} href={`/courses/${course.id}/exercises/${exercise.id}`}>
+                <div className="min-w-0">
+                  <p className="truncate text-xs text-muted-foreground">{course.name}</p>
+                  <p className="truncate font-medium">{exercise.title}</p>
+                </div>
+                <p className="shrink-0 text-lg font-semibold text-primary">{submission!.grade}/10</p>
+              </ListRow>
+            ))}
+          </DividedList>
+        </Tile>
       ) : null}
     </div>
+  );
+}
+
+function Tile({
+  title,
+  action,
+  className,
+  children,
+}: {
+  title: string;
+  action?: ReactNode;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className={cn("space-y-3 rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-5", className)}>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-base font-semibold tracking-tight">{title}</h2>
+        {action}
+      </div>
+      {children}
+    </section>
   );
 }

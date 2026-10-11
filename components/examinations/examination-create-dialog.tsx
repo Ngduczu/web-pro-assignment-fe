@@ -8,6 +8,7 @@ import type { CourseDto, ExaminationDto, ExaminationSecuritySettings, QuestionBa
 import { useLanguage } from "@/lib/i18n";
 import { ExaminationQuestionSelector, type ExaminationQuestionSelection } from "@/components/examinations/examination-question-selector";
 import { ExaminationSecurityFields } from "@/components/examinations/examination-security-fields";
+import { FieldError, RequiredMark, ValidatedForm } from "@/components/ui/form-field-feedback";
 
 const field = "h-10 w-full border border-input bg-background px-3 text-sm";
 const initialSelection: ExaminationQuestionSelection = { mode: "Random", rules: [{ questionBankId: "", difficulty: "Medium", questionCount: 1 }], questionIds: [] };
@@ -65,20 +66,20 @@ export function ExaminationCreateDialog({ courses, banks, onClose, onCreated }: 
 
   return <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
     <button type="button" className="absolute inset-0 bg-foreground/30 backdrop-blur-sm" onClick={onClose} aria-label={text.close} />
-    <form onSubmit={submit} className="relative max-h-[calc(100vh-1.5rem)] w-full max-w-4xl overflow-y-auto border border-border bg-card p-5 shadow-2xl sm:p-6">
+    <ValidatedForm onSubmit={submit} className="relative max-h-[calc(100vh-1.5rem)] w-full max-w-4xl overflow-y-auto rounded-2xl border border-border bg-card p-5 shadow-2xl sm:p-6">
       <div className="flex justify-between gap-4"><div><h2 className="text-xl font-semibold">{text.heading}</h2><p className="mt-1 text-sm text-muted-foreground">{text.intro}</p></div><button type="button" onClick={onClose} aria-label={text.close} className="p-1"><X className="size-5" /></button></div>
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        <label className="grid gap-2 text-sm font-medium sm:col-span-2">{text.course}<select required value={courseId} onChange={(event) => changeCourse(event.target.value)} className={field}>{courses.map((course) => <option key={course.id} value={course.id}>{course.name}</option>)}</select></label>
-        <label className="grid gap-2 text-sm font-medium sm:col-span-2">{text.title}<input required maxLength={200} value={title} onChange={(event) => setTitle(event.target.value)} className={field} /></label>
+        <label className="grid gap-2 text-sm font-medium sm:col-span-2"><span>{text.course}<RequiredMark /></span><select required data-field-error="exam-course" value={courseId} onChange={(event) => changeCourse(event.target.value)} className={field}>{courses.map((course) => <option key={course.id} value={course.id}>{course.name}</option>)}</select><FieldError field="exam-course" /></label>
+        <label className="grid gap-2 text-sm font-medium sm:col-span-2"><span>{text.title}<RequiredMark /></span><input required data-field-error="exam-title" maxLength={200} value={title} onChange={(event) => setTitle(event.target.value)} className={field} /><FieldError field="exam-title" /></label>
         <label className="grid gap-2 text-sm font-medium sm:col-span-2">{text.description}<textarea maxLength={4000} rows={3} value={description} onChange={(event) => setDescription(event.target.value)} className="border border-input bg-background px-3 py-2 text-sm" /></label>
-        <label className="grid gap-2 text-sm font-medium">{text.starts}<input required type="datetime-local" value={startAt} onChange={(event) => setStartAt(event.target.value)} className={field} /></label>
-        <label className="grid gap-2 text-sm font-medium">{text.ends}<input required type="datetime-local" value={dueAt} onChange={(event) => setDueAt(event.target.value)} className={field} /></label>
-        <label className="grid gap-2 text-sm font-medium">{text.duration}<input required min={1} type="number" value={duration} onChange={(event) => setDuration(Number(event.target.value))} className={field} /></label>
+        <label className="grid gap-2 text-sm font-medium"><span>{text.starts}<RequiredMark /></span><input required data-field-error="exam-start" type="datetime-local" value={startAt} onChange={(event) => setStartAt(event.target.value)} className={field} /><FieldError field="exam-start" /></label>
+        <label className="grid gap-2 text-sm font-medium"><span>{text.ends}<RequiredMark /></span><input required data-field-error="exam-end" type="datetime-local" value={dueAt} onChange={(event) => setDueAt(event.target.value)} className={field} /><FieldError field="exam-end" /></label>
+        <label className="grid gap-2 text-sm font-medium"><span>{text.duration}<RequiredMark /></span><input required data-field-error="exam-duration" min={1} type="number" value={duration} onChange={(event) => setDuration(Number(event.target.value))} className={field} /><FieldError field="exam-duration" /></label>
       </div>
       <ExaminationQuestionSelector key={courseId} banks={availableBanks} value={selection} onChange={setSelection} onError={setError} />
       <ExaminationSecurityFields value={security} onChange={setSecurity} shuffleQuestions={shuffleQuestions} onShuffleChange={setShuffleQuestions} showScore={showScore} onShowScoreChange={setShowScore} />
       {error ? <p role="alert" className="mt-4 border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p> : null}
       <div className="mt-6 flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end"><button type="button" onClick={onClose} className="h-10 border border-border px-4 text-sm font-medium">{text.cancel}</button><button disabled={busy} className="h-10 bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-50">{busy ? text.creating : text.create}</button></div>
-    </form>
+    </ValidatedForm>
   </div>;
 }

@@ -139,7 +139,7 @@ export function QuestionImportDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
       <button className="absolute inset-0 bg-foreground/30 backdrop-blur-sm" onClick={onClose} disabled={busy} aria-label={text.close} />
-      <div className="relative max-h-[calc(100vh-1.5rem)] w-full max-w-2xl space-y-4 overflow-y-auto border border-border bg-card p-5 shadow-2xl sm:p-6">
+      <div className="relative max-h-[calc(100vh-1.5rem)] w-full max-w-2xl space-y-4 overflow-y-auto rounded-2xl border border-border bg-card p-5 shadow-2xl sm:p-6">
         <div className="flex justify-between gap-3">
           <div>
             <h2 className="text-xl font-semibold">{text.title}</h2>
@@ -149,10 +149,10 @@ export function QuestionImportDialog({
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row">
-          <button type="button" onClick={() => void downloadQuestionsTemplate()} className="inline-flex items-center justify-center gap-2 border border-border px-3 py-2 text-sm font-medium hover:bg-muted">
+          <button type="button" onClick={() => void downloadQuestionsTemplate()} className="inline-flex items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted">
             <Download className="size-4" /> {text.template}
           </button>
-          <button type="button" disabled={busy} onClick={() => input.current?.click()} className="inline-flex items-center justify-center gap-2 bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
+          <button type="button" disabled={busy} onClick={() => input.current?.click()} className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
             <FileSpreadsheet className="size-4" /> {text.choose}
           </button>
           <input
@@ -200,7 +200,7 @@ export function QuestionImportDialog({
           type="button"
           onClick={() => void runImport()}
           disabled={busy || !validRows.length}
-          className="h-10 w-full bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          className="h-10 w-full rounded-lg bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           {busy ? text.importing(progress, validRows.length) : text.importBtn(validRows.length)}
         </button>

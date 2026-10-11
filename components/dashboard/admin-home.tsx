@@ -1,9 +1,8 @@
-import Link from "next/link";
 import { connection } from "next/server";
 import { requireRole } from "@/lib/auth/session";
 import { serverApis } from "@/lib/api/server-apis";
 import { getServerLanguage, translate } from "@/lib/i18n-server";
-import type { CourseDto, QuestionBankDto, UserProfileDto } from "@/types/api";
+import type { CourseDto, UserProfileDto } from "@/types/api";
 import {
   AlertBanner,
   DividedList,
@@ -14,10 +13,11 @@ import {
   StatRow,
   TextLink,
 } from "@/components/ui/page-chrome";
+import { AreaRefreshButton } from "@/components/ui/area-refresh-button";
 
 export async function AdminHome() {
   await connection();
-  const { user } = await requireRole("Admin");
+  const { user } = await requireRole("Admin", "System");
   const language = await getServerLanguage();
   const text = (value: string) => translate(language, value);
   const isVi = language === "vi";
@@ -25,24 +25,18 @@ export async function AdminHome() {
 
   let users: UserProfileDto[] = [];
   let courses: CourseDto[] = [];
-  let banks: QuestionBankDto[] = [];
 
   try {
-    const [usersResult, coursesResult, banksResult] = await Promise.all([
-      serverApis.users.list({ pageSize: 100 }),
-      serverApis.courses.list({ pageSize: 100 }),
-      serverApis.questions.listBanks().catch(() => [] as QuestionBankDto[]),
+    const [usersResult, coursesResult] = await Promise.all([
+      serverApis.users.list({ pageSize: 20 }),
+      serverApis.courses.list({ pageSize: 20 }),
     ]);
     users = usersResult.items;
     courses = coursesResult.items;
-    banks = banksResult;
   } catch {
     return <AlertBanner>{text("Dashboard data could not be loaded. Please try again later.")}</AlertBanner>;
   }
 
-  const studentCount = users.filter((u) => u.role === "Student").length;
-  const teacherCount = users.filter((u) => u.role === "Teacher").length;
-  const adminCount = users.filter((u) => u.role === "Admin").length;
   const activeUsersCount = users.filter((u) => u.status === "Active").length;
   const openCoursesCount = courses.filter((c) => c.status === "Open").length;
   const userMap = new Map(users.map((u) => [u.id, u.fullName]));
@@ -53,65 +47,29 @@ export async function AdminHome() {
         eyebrow={text("Administration")}
         title={`${text("Welcome back")}, ${user.fullName}`}
         description={text("Manage accounts, courses and question banks from one place.")}
-        actions={
-          <>
-            <TextLink href="/admin" variant="primary">{text("Manage users")}</TextLink>
-            <TextLink href="/courses">{text("Review courses")}</TextLink>
-          </>
-        }
+        mascotSrc="/assets/owlie/point.webp"
+        actions={<AreaRefreshButton label={isVi ? "Làm mới tổng quan" : "Refresh overview"} loadingLabel={isVi ? "Đang làm mới..." : "Refreshing..."} />}
       />
 
       <StatRow
         stats={[
           { label: text("Users returned"), value: users.length },
           { label: text("Active users"), value: activeUsersCount },
-          { label: text("Open courses"), value: `${openCoursesCount} / ${courses.length}` },
-          { label: text("Question banks"), value: banks.length },
+          { label: isVi ? "Khóa học đang mở" : "Active courses", value: openCoursesCount },
         ]}
       />
 
       <div className="grid items-start gap-6 md:grid-cols-2">
-        <PageSection title={isVi ? "Cơ cấu vai trò" : "Role distribution"}>
-          <div className="divide-y divide-border rounded-xl border border-border px-4 text-sm">
-            <div className="flex items-center justify-between py-3">
-              <span className="text-muted-foreground">{text("Student")}</span>
-              <span className="font-medium">{studentCount}</span>
-            </div>
-            <div className="flex items-center justify-between py-3">
-              <span className="text-muted-foreground">{text("Teacher")}</span>
-              <span className="font-medium">{teacherCount}</span>
-            </div>
-            <div className="flex items-center justify-between py-3">
-              <span className="text-muted-foreground">{text("Admin")}</span>
-              <span className="font-medium">{adminCount}</span>
-            </div>
-          </div>
-        </PageSection>
-
-        <PageSection title={isVi ? "Tình trạng tài khoản" : "Account status"}>
-          <div className="divide-y divide-border rounded-xl border border-border px-4 text-sm">
-            <div className="flex items-center justify-between py-3">
-              <span className="text-muted-foreground">{text("Active")}</span>
-              <span className="font-medium">{activeUsersCount}</span>
-            </div>
-            <div className="flex items-center justify-between py-3">
-              <span className="text-muted-foreground">{isVi ? "Hạn chế / Chưa kích hoạt" : "Restricted / Inactive"}</span>
-              <span className="font-medium">{users.length - activeUsersCount}</span>
-            </div>
-          </div>
-        </PageSection>
-      </div>
-
       <PageSection
-        title={isVi ? "Người dùng" : "User accounts"}
-        description={isVi ? "Tài khoản trong kết quả quản trị hiện tại." : "Accounts returned in the current administration results."}
-        action={<Link href="/admin" className="text-sm font-medium text-primary hover:underline">{text("Manage users")}</Link>}
+        title={isVi ? "Quản lý người dùng" : "User management"}
+        action={<TextLink href="/admin">{text("Manage users")}</TextLink>}
       >
         {!users.length ? (
-          <EmptyState>{isVi ? "Chưa có người dùng." : "No users yet."}</EmptyState>
+          <EmptyState mascotSrc="/assets/owlie/think.webp">{isVi ? "Chưa có người dùng." : "No users yet."}</EmptyState>
         ) : (
+          <div className="max-h-[calc(100vh-27rem)] min-h-64 overflow-y-auto pr-1">
           <DividedList>
-            {users.slice(0, 8).map((u) => (
+            {users.map((u) => (
               <ListRow key={u.id}>
                 <div className="min-w-0">
                   <p className="truncate font-medium">{u.fullName}</p>
@@ -124,19 +82,20 @@ export async function AdminHome() {
               </ListRow>
             ))}
           </DividedList>
+          </div>
         )}
       </PageSection>
 
       <PageSection
-        title={isVi ? "Khóa học" : "Courses"}
-        description={isVi ? "Danh mục khóa học trong kết quả quản trị hiện tại." : "Courses returned in the current administration results."}
-        action={<Link href="/courses" className="text-sm font-medium text-primary hover:underline">{text("Open courses")}</Link>}
+        title={isVi ? "Quản lý khóa học" : "Course management"}
+        action={<TextLink href="/courses">{text("Review courses")}</TextLink>}
       >
         {!courses.length ? (
-          <EmptyState>{text("No courses are available yet.")}</EmptyState>
+          <EmptyState mascotSrc="/assets/owlie/peek.webp">{text("No courses are available yet.")}</EmptyState>
         ) : (
+          <div className="max-h-[calc(100vh-27rem)] min-h-64 overflow-y-auto pr-1">
           <DividedList>
-            {courses.slice(0, 8).map((course) => (
+            {courses.map((course) => (
               <ListRow key={course.id} href={`/courses/${course.id}`}>
                 <div className="min-w-0">
                   <p className="truncate font-medium">{course.name}</p>
@@ -146,13 +105,15 @@ export async function AdminHome() {
                   </p>
                 </div>
                 <span className="shrink-0 text-right text-xs text-muted-foreground">
-                  {text(course.status)} · {text("Capacity")} {course.maxStudents}
+                  {text(course.status)} · {text("Capacity")} {course.acceptedStudentCount}/{course.maxStudents}
                 </span>
               </ListRow>
             ))}
           </DividedList>
+          </div>
         )}
       </PageSection>
+      </div>
     </div>
   );
 }

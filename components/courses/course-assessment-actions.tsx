@@ -10,6 +10,7 @@ import { useLanguage } from "@/lib/i18n";
 import type { CourseDto, QuestionBankDto } from "@/types/api";
 import { ExaminationCreateDialog } from "@/components/examinations/examination-create-dialog";
 import { LessonCreateDialog } from "@/components/courses/lesson-create-dialog";
+import { FieldError, RequiredMark, ValidatedForm } from "@/components/ui/form-field-feedback";
 
 const copy = {
   en: { lesson: "Create lesson", exercise: "Create assignment", exam: "Create examination", title: "New assignment", description: "Create an assignment and attach its instructions directly inside this course.", name: "Title", details: "Description", due: "Due date", attachment: "Attachment", chooseFile: "Choose file", fileHint: "Optional, maximum 20 MB.", removeFile: "Remove", cancel: "Cancel", creating: "Creating and uploading...", create: "Create draft", failure: "Unable to create assignment.", fileTooLarge: "The attachment must be 20 MB or smaller.", partialFailure: "The assignment was created, but its attachment could not be uploaded. Open the assignment to retry.", openExercise: "Open assignment", noBank: "Create a question bank before adding an examination.", banks: "Open question banks" },
@@ -69,7 +70,56 @@ export function CourseAssessmentActions({ kind, course, banks, nextLessonOrder }
       {kind === "examination" && !banks.length ? <span className="basis-full text-xs text-amber-700">{text.noBank} <Link href="/question-banks" className="font-medium underline">{text.banks}</Link></span> : null}
     </div>
     {kind === "lesson" && lessonOpen ? <LessonCreateDialog courseId={course.id} nextOrder={nextLessonOrder} onClose={() => setLessonOpen(false)} onCreated={() => { setLessonOpen(false); router.refresh(); }} /> : null}
-    {kind === "assignment" && exerciseOpen ? <div className="fixed inset-0 z-50 flex items-center justify-center p-4"><button className="absolute inset-0 bg-foreground/30 backdrop-blur-sm" onClick={() => setExerciseOpen(false)} aria-label={text.cancel} /><form onSubmit={createExercise} className="relative max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto border border-border bg-card p-5 shadow-2xl sm:p-6"><div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-semibold">{text.title}</h2><p className="mt-1 text-sm text-muted-foreground">{text.description}</p></div><button type="button" onClick={() => setExerciseOpen(false)}><X className="size-5" /></button></div><fieldset disabled={busy || Boolean(createdExerciseId)} className="mt-6 space-y-4 disabled:opacity-70"><label className="grid gap-2 text-sm font-medium">{text.name}<input required maxLength={200} value={title} onChange={(event) => setTitle(event.target.value)} className="h-10 border border-input bg-background px-3 font-normal" /></label><label className="grid gap-2 text-sm font-medium">{text.details}<textarea rows={3} value={description} onChange={(event) => setDescription(event.target.value)} className="border border-input bg-background px-3 py-2 font-normal" /></label><label className="grid gap-2 text-sm font-medium">{text.due}<input type="datetime-local" value={dueAt} onChange={(event) => setDueAt(event.target.value)} className="h-10 border border-input bg-background px-3 font-normal" /></label><div className="space-y-2"><p className="text-sm font-medium">{text.attachment}</p><p className="text-xs text-muted-foreground">{text.fileHint}</p>{exerciseFile ? <div className="flex items-center gap-3 border border-border p-3"><Paperclip className="size-4 shrink-0 text-primary" /><span className="min-w-0 flex-1 truncate text-sm">{exerciseFile.name}</span><button type="button" onClick={() => setExerciseFile(undefined)} className="text-xs font-medium text-destructive">{text.removeFile}</button></div> : <label className="inline-flex cursor-pointer border border-border px-3 py-2 text-sm font-medium hover:bg-muted"><input type="file" className="sr-only" onChange={selectExerciseFile} />{text.chooseFile}</label>}</div></fieldset>{error ? <p className="mt-4 border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p> : null}<div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" onClick={() => setExerciseOpen(false)} className="h-10 border border-border px-4 text-sm font-medium">{text.cancel}</button>{createdExerciseId ? <button type="button" onClick={openCreatedExercise} className="h-10 bg-primary px-4 text-sm font-semibold text-primary-foreground">{text.openExercise}</button> : <button disabled={busy} className="h-10 bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50">{busy ? text.creating : text.create}</button>}</div></form></div> : null}
+    {kind === "assignment" && exerciseOpen ? <div className="fixed inset-0 z-50 flex items-center justify-center p-4"><button className="absolute inset-0 bg-foreground/30 backdrop-blur-sm" onClick={() => setExerciseOpen(false)} aria-label={text.cancel} /><ValidatedForm onSubmit={createExercise}
+      className="relative max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-card p-5 shadow-2xl sm:p-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-semibold">{text.title}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{text.description}</p>
+        </div>
+        <button type="button" onClick={() => setExerciseOpen(false)}>
+          <X className="size-5" />
+        </button>
+      </div>
+      <fieldset disabled={busy || Boolean(createdExerciseId)} className="mt-6 space-y-4 disabled:opacity-70">
+        <label className="grid gap-2 text-sm font-medium"><span>{text.name}<RequiredMark /></span><input required data-field-error="assignment-title" maxLength={200} value={title} onChange={(event) => setTitle(event.target.value)} className="h-10 border border-input bg-background px-3 font-normal" /><FieldError field="assignment-title" /></label>
+        <label className="grid gap-2 text-sm font-medium">{text.details}<textarea rows={3} value={description} onChange={(event) => setDescription(event.target.value)} className="border border-input bg-background px-3 py-2 font-normal" /></label>
+        <label className="grid gap-2 text-sm font-medium">{text.due}<input type="datetime-local" value={dueAt} onChange={(event) => setDueAt(event.target.value)} className="h-10 border border-input bg-background px-3 font-normal" /></label>
+        <div className="space-y-2">
+          <p className="text-sm font-medium">{text.attachment}</p>
+          <p className="text-xs text-muted-foreground">{text.fileHint}</p>
+          {exerciseFile ? (
+            <div className="flex items-center gap-3 border border-border p-3">
+              <Paperclip className="size-4 shrink-0 text-primary" />
+              <span className="min-w-0 flex-1 truncate text-sm">{exerciseFile.name}</span>
+              <button type="button" onClick={() => setExerciseFile(undefined)}>
+                {text.removeFile}
+              </button>
+            </div>
+          ) : (
+            <label className="inline-flex cursor-pointer border border-border px-3 py-2 text-sm font-medium hover:bg-muted">
+              <input type="file" className="sr-only" onChange={selectExerciseFile} />
+              {text.chooseFile}
+            </label>
+          )}
+        </div>
+      </fieldset>
+      {error ? <p className="mt-4 border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p> : null}
+      <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <button type="button" onClick={() => setExerciseOpen(false)}>
+          {text.cancel}
+        </button>
+        {createdExerciseId ? (
+          <button type="button" onClick={openCreatedExercise} className="h-10 bg-primary px-4 text-sm font-semibold text-primary-foreground">
+            {text.openExercise}
+          </button>
+        ) : (
+          <button disabled={busy} className="h-10 bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+            {busy ? text.creating : text.create}
+          </button>
+        )}
+      </div>
+    </ValidatedForm></div> : null}
     {kind === "examination" && examOpen ? <ExaminationCreateDialog courses={[course]} banks={banks} onClose={() => setExamOpen(false)} onCreated={() => { setExamOpen(false); router.refresh(); }} /> : null}
   </>;
 }

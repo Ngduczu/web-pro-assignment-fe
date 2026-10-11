@@ -18,7 +18,7 @@ async function ChatContent({ searchParams }: { searchParams: Promise<{ courseId?
       serverApis.chat.listRooms(),
       user.role === "Student"
         ? serverApis.courses.listMine()
-        : serverApis.courses.list({ teacherId: user.role === "Teacher" ? user.id : undefined, pageSize: 100 }).then((result) => result.items),
+        : serverApis.courses.list({ teacherId: user.role === "Teacher" ? user.id : undefined, pageSize: 20 }).then((result) => result.items),
     ]);
   } catch {
     return <div className="border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive">{language === "vi" ? "Không thể tải tin nhắn." : "Messages could not be loaded."}</div>;

@@ -8,6 +8,7 @@ import { clientApis } from "@/lib/api/client-apis";
 import type { ExerciseDto, PaginatedResponse, SubmissionDto } from "@/types/api";
 import { useLanguage } from "@/lib/i18n";
 import { AssignmentSubmissions } from "@/components/courses/assignment-submissions";
+import { AreaRefreshButton } from "@/components/ui/area-refresh-button";
 
 const copy = {
   en: {
@@ -56,6 +57,7 @@ const copy = {
     noFeedback: "No written feedback was provided.",
     gradedAt: "Graded at",
     awaitingGrade: "Your work is awaiting grading. Results on this page update automatically.",
+    refresh: "Refresh assignment", refreshing: "Refreshing...", refreshError: "Unable to refresh assignment.",
   },
   vi: {
     title: "Tệp đính kèm bài tập",
@@ -103,6 +105,7 @@ const copy = {
     noFeedback: "Giảng viên không để lại nhận xét.",
     gradedAt: "Chấm lúc",
     awaitingGrade: "Bài làm đang chờ chấm. Kết quả trên trang này sẽ tự động cập nhật.",
+    refresh: "Làm mới bài tập", refreshing: "Đang làm mới...", refreshError: "Không thể làm mới bài tập.",
   },
 };
 
@@ -132,12 +135,30 @@ export function ExerciseWorkspace({
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [refreshError, setRefreshError] = useState<string>();
 
   // Edit exercise modal state
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(exercise.title);
   const [description, setDescription] = useState(exercise.description ?? "");
   const [dueAt, setDueAt] = useState(toLocalDateTimeString(exercise.dueAt));
+
+  async function refreshAssignment() {
+    setError(undefined);
+    setRefreshError(undefined);
+    try {
+      setExercise(await clientApis.assignments.getExercise(exercise.id));
+      if (!canManage) {
+        const latest = await clientApis.assignments.getMySubmission(exercise.id).catch((caught) => {
+          if (caught instanceof ApiError && caught.status === 404) return undefined;
+          throw caught;
+        });
+        setSubmission(latest);
+      }
+    } catch (caught) {
+      setRefreshError(language === "en" && caught instanceof ApiError ? caught.detail : text.refreshError);
+    }
+  }
 
   useEffect(() => {
     if (canManage || submission?.status !== "Submitted") return;
@@ -295,6 +316,7 @@ export function ExerciseWorkspace({
       {error ? (
         <p role="alert" className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">{error}</p>
       ) : null}
+      {refreshError ? <p role="alert" className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">{refreshError}</p> : null}
 
       {/* Teacher / Admin Action bar */}
       {canManage ? (
@@ -344,8 +366,11 @@ export function ExerciseWorkspace({
             <Trash2 className="size-4" />
             {deleting ? text.deleting : text.deleteExercise}
           </button>
+          <AreaRefreshButton label={text.refresh} loadingLabel={text.refreshing} onRefresh={refreshAssignment} disabled={busy || deleting || editing} />
         </div>
       ) : null}
+
+      {!canManage ? <div className="flex justify-end"><AreaRefreshButton label={text.refresh} loadingLabel={text.refreshing} onRefresh={refreshAssignment} disabled={busy || editing} /></div> : null}
 
       <div className={canManage ? "space-y-6" : "grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.72fr)] xl:items-start"}>
       {/* Attachment Section */}
@@ -495,7 +520,7 @@ export function ExerciseWorkspace({
             onSubmit={handleSaveExercise}
             role="dialog"
             aria-modal="true"
-            className="relative max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto border border-border bg-card p-6 shadow-2xl"
+            className="relative max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-2xl"
           >
             <div className="flex items-start justify-between gap-4">
               <div>

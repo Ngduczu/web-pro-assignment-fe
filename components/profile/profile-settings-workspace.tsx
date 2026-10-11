@@ -8,22 +8,21 @@ import {
   Globe,
   KeyRound,
   Laptop,
-  Link as LinkIcon,
   Moon,
   Pencil,
   Shield,
   Sun,
   UserRound,
   X,
-  ExternalLink,
 } from "lucide-react";
-import { FcGoogle } from "react-icons/fc";
 import { clientApis } from "@/lib/api/client-apis";
 import { authSessionApi } from "@/lib/api/auth-session-client";
 import { ApiError } from "@/lib/api/errors";
 import { useLanguage, type Language } from "@/lib/i18n";
 import { PasswordInput } from "@/components/auth/password-input";
+import { FieldError, RequiredMark, ValidatedForm } from "@/components/ui/form-field-feedback";
 import { PageHeader } from "@/components/ui/page-chrome";
+import { AreaRefreshButton } from "@/components/ui/area-refresh-button";
 import type { UserProfileDto } from "@/types/api";
 
 type ProfileSettingsWorkspaceProps = {
@@ -53,14 +52,6 @@ const copy = {
     saving: "Saving...",
     updateSuccess: "Profile updated successfully.",
     updateFailure: "Unable to update profile.",
-    oauthSection: "External Accounts & Authentication",
-    oauthDesc: "Connect external accounts for convenient and secure sign-in.",
-    googleLink: "Link Google Account",
-    googleLinkDesc: "Allow signing in to this LMS account using your Google account.",
-    linkGoogleBtn: "Connect with Google",
-    linkingGoogle: "Redirecting to Google...",
-    googleConnected: "Google account connected",
-    linkError: "Unable to start Google link flow.",
     passwordSection: "Password & Sessions",
     passwordDesc: "Change your password and revoke every active session on this account.",
     createPasswordDesc: "Create a password so you can also sign in with your email address.",
@@ -86,10 +77,12 @@ const copy = {
     roleStudent: "Student",
     roleTeacher: "Teacher",
     roleAdmin: "Admin",
+    roleSystem: "System administrator",
     statusActive: "Active",
     statusInactive: "Inactive",
     statusDisabled: "Disabled",
     statusBanned: "Banned",
+    refresh: "Refresh profile", refreshing: "Refreshing...", refreshError: "Unable to refresh profile.",
   },
   vi: {
     pageEyebrow: "Tài khoản",
@@ -113,14 +106,6 @@ const copy = {
     saving: "Đang lưu...",
     updateSuccess: "Cập nhật hồ sơ thành công.",
     updateFailure: "Không thể cập nhật hồ sơ.",
-    oauthSection: "Tài khoản liên kết & Xác thực",
-    oauthDesc: "Kết nối tài khoản bên ngoài để đăng nhập nhanh chóng và bảo mật hơn.",
-    googleLink: "Liên kết tài khoản Google",
-    googleLinkDesc: "Cho phép đăng nhập vào tài khoản này bằng tài khoản Google của bạn.",
-    linkGoogleBtn: "Kết nối tài khoản Google",
-    linkingGoogle: "Đang chuyển hướng tới Google...",
-    googleConnected: "Đã kết nối tài khoản Google",
-    linkError: "Không thể bắt đầu liên kết tài khoản Google.",
     passwordSection: "Mật khẩu & Phiên đăng nhập",
     passwordDesc: "Đổi mật khẩu và thu hồi toàn bộ phiên đang hoạt động của tài khoản.",
     createPasswordDesc: "Tạo mật khẩu để bạn cũng có thể đăng nhập bằng địa chỉ email.",
@@ -146,10 +131,12 @@ const copy = {
     roleStudent: "Học viên",
     roleTeacher: "Giảng viên",
     roleAdmin: "Quản trị viên",
+    roleSystem: "Quản trị hệ thống",
     statusActive: "Đang hoạt động",
     statusInactive: "Chưa kích hoạt",
     statusDisabled: "Đã vô hiệu hóa",
     statusBanned: "Đã bị cấm",
+    refresh: "Làm mới hồ sơ", refreshing: "Đang làm mới...", refreshError: "Không thể làm mới hồ sơ.",
   },
 };
 
@@ -165,6 +152,8 @@ export function ProfileSettingsWorkspace({ user }: ProfileSettingsWorkspaceProps
       ? text.roleTeacher
       : user.role === "Admin"
         ? text.roleAdmin
+        : user.role === "System"
+          ? text.roleSystem
         : user.role;
   const statusLabel = user.status === "Active"
     ? text.statusActive
@@ -182,9 +171,8 @@ export function ProfileSettingsWorkspace({ user }: ProfileSettingsWorkspaceProps
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string>();
   const [profileSuccess, setProfileSuccess] = useState<string>();
+  const [profileLoadError, setProfileLoadError] = useState<string>();
 
-  const [linkingGoogle, setLinkingGoogle] = useState(false);
-  const [linkError, setLinkError] = useState<string>();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
@@ -215,20 +203,6 @@ export function ProfileSettingsWorkspace({ user }: ProfileSettingsWorkspaceProps
     }
   }
 
-  async function handleGoogleLink() {
-    setLinkingGoogle(true);
-    setLinkError(undefined);
-    try {
-      const response = await clientApis.auth.oauthLinkAuthorize("Google");
-      if (response.authorizationUrl) {
-        window.location.href = response.authorizationUrl;
-      }
-    } catch (caught) {
-      setLinkError(language === "en" && caught instanceof ApiError ? caught.detail : text.linkError);
-      setLinkingGoogle(false);
-    }
-  }
-
   async function handlePasswordSubmit(event: React.FormEvent) {
     event.preventDefault();
     setPasswordError(undefined);
@@ -240,7 +214,6 @@ export function ProfileSettingsWorkspace({ user }: ProfileSettingsWorkspaceProps
       setPasswordError(text.passwordMismatch);
       return;
     }
-
     setChangingPassword(true);
     try {
       await clientApis.users.changeMyPassword({
@@ -257,9 +230,21 @@ export function ProfileSettingsWorkspace({ user }: ProfileSettingsWorkspaceProps
     }
   }
 
+  async function refreshProfile() {
+    try {
+      await clientApis.users.getProfile(user.id);
+      setProfileLoadError(undefined);
+      router.refresh();
+    } catch (caught) {
+      setProfileLoadError(language === "en" && caught instanceof ApiError ? caught.detail : text.refreshError);
+      throw caught;
+    }
+  }
+
   return (
     <div className="space-y-8">
-      <PageHeader eyebrow={text.pageEyebrow} title={text.pageTitle} description={text.pageDescription} />
+      <PageHeader eyebrow={text.pageEyebrow} title={text.pageTitle} description={text.pageDescription} mascotSrc="/assets/owlie/hello.webp" actions={<AreaRefreshButton label={text.refresh} loadingLabel={text.refreshing} onRefresh={refreshProfile} disabled={openEditor || savingProfile || changingPassword} />} />
+      {profileLoadError ? <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{profileLoadError}</p> : null}
       <div className="space-y-10">
       {/* Profile Overview Card */}
       <section className="relative overflow-hidden rounded-xl border border-border bg-card p-6 shadow-xs sm:p-8">
@@ -369,10 +354,10 @@ export function ProfileSettingsWorkspace({ user }: ProfileSettingsWorkspaceProps
           </div>
         </div>
 
-        <form className="mt-5 grid gap-4 sm:max-w-xl" onSubmit={handlePasswordSubmit} noValidate>
+          <form className="mt-5 grid gap-4 sm:max-w-xl" onSubmit={handlePasswordSubmit} noValidate>
           {user.hasPassword ? (
             <label className="grid gap-1.5 text-xs font-medium text-foreground">
-              {text.currentPassword}
+              <span>{text.currentPassword}<RequiredMark /></span>
               <PasswordInput
                 id="current-password"
                 name="currentPassword"
@@ -385,7 +370,7 @@ export function ProfileSettingsWorkspace({ user }: ProfileSettingsWorkspaceProps
             </label>
           ) : null}
           <label className="grid gap-1.5 text-xs font-medium text-foreground">
-            {text.newPassword}
+            <span>{text.newPassword}<RequiredMark /></span>
             <PasswordInput
               id="new-password"
               name="newPassword"
@@ -397,7 +382,7 @@ export function ProfileSettingsWorkspace({ user }: ProfileSettingsWorkspaceProps
             />
           </label>
           <label className="grid gap-1.5 text-xs font-medium text-foreground">
-            {text.confirmPassword}
+            <span>{text.confirmPassword}<RequiredMark /></span>
             <PasswordInput
               id="password-confirm"
               name="passwordConfirm"
@@ -428,49 +413,6 @@ export function ProfileSettingsWorkspace({ user }: ProfileSettingsWorkspaceProps
             </button>
           </div>
         </form>
-      </section>
-
-      {/* External Account Linking */}
-      <section className="rounded-xl border border-border bg-card p-6 shadow-xs">
-        <div className="flex items-center gap-3 border-b border-border pb-4">
-          <LinkIcon className="size-5 text-primary" />
-          <div>
-            <h3 className="font-semibold text-foreground">{text.oauthSection}</h3>
-            <p className="text-xs text-muted-foreground">{text.oauthDesc}</p>
-          </div>
-        </div>
-
-        <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-lg border border-border/80 bg-muted/20 p-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <FcGoogle className="size-5 shrink-0" aria-hidden="true" />
-              <p className="font-medium text-foreground">{text.googleLink}</p>
-            </div>
-            <p className="text-xs text-muted-foreground">{text.googleLinkDesc}</p>
-          </div>
-          {user.isGoogleLinked ? (
-            <span className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-4 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-              <Check className="size-3.5" />
-              {text.googleConnected}
-            </span>
-          ) : (
-            <button
-              type="button"
-              disabled={linkingGoogle}
-              onClick={handleGoogleLink}
-              className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md border border-border bg-background px-4 text-xs font-semibold transition-colors hover:bg-muted disabled:opacity-50"
-            >
-              <ExternalLink className="size-3.5" />
-              {linkingGoogle ? text.linkingGoogle : text.linkGoogleBtn}
-            </button>
-          )}
-        </div>
-
-        {linkError ? (
-          <p className="mt-3 rounded-md border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive">
-            {linkError}
-          </p>
-        ) : null}
       </section>
 
       {/* Interface & Preferences */}
@@ -559,7 +501,7 @@ export function ProfileSettingsWorkspace({ user }: ProfileSettingsWorkspaceProps
           }}
         >
           <div className="absolute inset-0 bg-foreground/30 backdrop-blur-[3px]" />
-          <form
+          <ValidatedForm
             onSubmit={handleProfileSubmit}
             role="dialog"
             aria-modal="true"
@@ -581,14 +523,16 @@ export function ProfileSettingsWorkspace({ user }: ProfileSettingsWorkspaceProps
 
             <div className="mt-5 space-y-4">
               <label className="grid gap-1.5 text-xs font-medium text-foreground">
-                {text.fullName}
+                <span>{text.fullName}<RequiredMark /></span>
                 <input
                   required
+                  data-field-error="profile-full-name"
                   maxLength={100}
                   value={fullName}
                   onChange={(event) => setFullName(event.target.value)}
                   className="h-10 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
+                <FieldError field="profile-full-name" />
               </label>
 
               <label className="grid gap-1.5 text-xs font-medium text-foreground">
@@ -626,7 +570,7 @@ export function ProfileSettingsWorkspace({ user }: ProfileSettingsWorkspaceProps
                 {savingProfile ? text.saving : text.save}
               </button>
             </div>
-          </form>
+          </ValidatedForm>
         </div>
       ) : null}
       </div>

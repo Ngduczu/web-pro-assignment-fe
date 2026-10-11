@@ -1,19 +1,23 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CirclePlus, FileSpreadsheet, Pencil, Trash2, X } from "lucide-react";
+import { CirclePlus, FileSpreadsheet, Pencil, Search, Share2, Trash2, UserRound, X } from "lucide-react";
 import { clientApis } from "@/lib/api/client-apis";
 import { ApiError } from "@/lib/api/errors";
-import type { QuestionBankDto, QuestionDifficulty, QuestionDto, QuestionType, UserProfileDto } from "@/types/api";
+import type { ChatUserSearchDto, QuestionBankDto, QuestionDifficulty, QuestionDto, QuestionType, UserProfileDto } from "@/types/api";
 import { QuestionBankSidebar } from "@/components/questions/question-bank-sidebar";
 import { QuestionCard } from "@/components/questions/question-card";
 import { QuestionImportDialog } from "@/components/questions/question-import-dialog";
 import { useLanguage } from "@/lib/i18n";
+import { FieldError, RequiredMark, ValidatedForm } from "@/components/ui/form-field-feedback";
+import { PaginatedChildren } from "@/components/ui/paginated-list";
+import { EmptyState } from "@/components/ui/page-chrome";
+import { AreaRefreshButton } from "@/components/ui/area-refresh-button";
 
 type BankWithQuestions = { bank: QuestionBankDto; questions: QuestionDto[] };
 
-const inputClass = "h-10 w-full border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
-const areaClass = "w-full border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const inputClass = "h-10 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const areaClass = "w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 const copy = {
   en: {
@@ -21,9 +25,28 @@ const copy = {
     importExcel: "Import Excel",
     editBank: "Edit bank",
     deleteBank: "Delete bank",
+    shareBank: "Share bank",
+    shareTitle: "Share question bank",
+    shareDesc: "Find an active teacher by exact email, then share a copy of this bank and all its questions.",
+    recipientEmail: "Recipient teacher email",
+    search: "Search",
+    searching: "Searching...",
+    noUser: "No active user was found with this email.",
+    notTeacher: "This account is not a teacher.",
+    share: "Share",
+    sharing: "Sharing...",
+    shareError: "Unable to share question bank.",
+    shareSuccess: (email: string) => `Question bank shared with ${email}.`,
+    cancel: "Cancel",
     deleteBankConfirm: (name: string) => `Delete “${name}” and all of its questions?`,
     deleteQuestionConfirm: "Delete this question?",
     noQuestions: "No questions in this bank yet.",
+    noMatchingQuestions: "No questions match these filters.",
+    allDifficulties: "All difficulties",
+    allTypes: "All question types",
+    questionType: "Question type",
+    clearFilters: "Clear filters",
+    questionCount: (count: number) => `${count} questions`,
     selectOrCreate: "Select or create a question bank.",
     newBankTitle: "New question bank",
     editBankTitle: "Edit question bank",
@@ -56,15 +79,35 @@ const copy = {
     deleteBankError: "Unable to delete question bank.",
     saveQuestionError: "Unable to save question.",
     deleteQuestionError: "Unable to delete question.",
+    refresh: "Refresh question banks", refreshing: "Refreshing...", refreshError: "Unable to refresh question banks.",
   },
   vi: {
     addQuestion: "Thêm câu hỏi",
     importExcel: "Nhập Excel",
     editBank: "Sửa ngân hàng",
     deleteBank: "Xóa ngân hàng",
+    shareBank: "Chia sẻ ngân hàng",
+    shareTitle: "Chia sẻ ngân hàng câu hỏi",
+    shareDesc: "Tìm giảng viên đang hoạt động bằng email chính xác, sau đó chia sẻ bản sao ngân hàng cùng toàn bộ câu hỏi.",
+    recipientEmail: "Email giảng viên nhận",
+    search: "Tìm kiếm",
+    searching: "Đang tìm...",
+    noUser: "Không tìm thấy tài khoản đang hoạt động với email này.",
+    notTeacher: "Tài khoản này không phải giảng viên.",
+    share: "Chia sẻ",
+    sharing: "Đang chia sẻ...",
+    shareError: "Không thể chia sẻ ngân hàng câu hỏi.",
+    shareSuccess: (email: string) => `Đã chia sẻ ngân hàng cho ${email}.`,
+    cancel: "Hủy",
     deleteBankConfirm: (name: string) => `Xóa ngân hàng “${name}” và tất cả câu hỏi bên trong?`,
     deleteQuestionConfirm: "Xóa câu hỏi này?",
     noQuestions: "Chưa có câu hỏi nào trong ngân hàng này.",
+    noMatchingQuestions: "Không có câu hỏi phù hợp với bộ lọc.",
+    allDifficulties: "Mọi độ khó",
+    allTypes: "Mọi loại câu hỏi",
+    questionType: "Loại câu hỏi",
+    clearFilters: "Xóa bộ lọc",
+    questionCount: (count: number) => `${count} câu hỏi`,
     selectOrCreate: "Chọn hoặc tạo mới một ngân hàng câu hỏi.",
     newBankTitle: "Ngân hàng câu hỏi mới",
     editBankTitle: "Chỉnh sửa ngân hàng câu hỏi",
@@ -97,6 +140,7 @@ const copy = {
     deleteBankError: "Không thể xóa ngân hàng câu hỏi.",
     saveQuestionError: "Không thể lưu câu hỏi.",
     deleteQuestionError: "Không thể xóa câu hỏi.",
+    refresh: "Làm mới ngân hàng câu hỏi", refreshing: "Đang làm mới...", refreshError: "Không thể làm mới ngân hàng câu hỏi.",
   },
 };
 
@@ -122,10 +166,20 @@ export function QuestionBankWorkspace({
   const [editingQuestion, setEditingQuestion] = useState<QuestionDto>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const [notice, setNotice] = useState<string>();
+  const [refreshError, setRefreshError] = useState<string>();
+  const [refreshing, setRefreshing] = useState(false);
+  const [currentTeachers, setTeachers] = useState(teachers);
+  const [shareModal, setShareModal] = useState(false);
+  const [shareEmail, setShareEmail] = useState("");
+  const [shareUser, setShareUser] = useState<ChatUserSearchDto>();
+  const [searching, setSearching] = useState(false);
   const [bankName, setBankName] = useState("");
   const [bankDescription, setBankDescription] = useState("");
   const [teacherId, setTeacherId] = useState(userId);
   const [type, setType] = useState<QuestionType>("MultipleChoice");
+  const [difficultyFilter, setDifficultyFilter] = useState<"all" | QuestionDifficulty>("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | QuestionType>("all");
   const [content, setContent] = useState("");
   const [difficulty, setDifficulty] = useState<QuestionDifficulty>("Medium");
   const [shuffle, setShuffle] = useState(true);
@@ -134,6 +188,32 @@ export function QuestionBankWorkspace({
   const [answers, setAnswers] = useState([""]);
   const [answerOrders, setAnswerOrders] = useState([1]);
   const selected = useMemo(() => items.find((item) => item.bank.id === selectedId), [items, selectedId]);
+  const filteredQuestions = useMemo(
+    () => selected?.questions.filter((question) =>
+      (difficultyFilter === "all" || question.difficulty === difficultyFilter) &&
+      (typeFilter === "all" || question.type === typeFilter),
+    ) ?? [],
+    [selected, difficultyFilter, typeFilter],
+  );
+
+  async function refreshBanks() {
+    if (refreshing) return;
+    setRefreshing(true);
+    setRefreshError(undefined);
+    try {
+      const banks = await clientApis.questions.listBanks(role === "Teacher" ? userId : undefined);
+      const latestItems = await Promise.all(banks.map(async (bank) => ({ bank, questions: await clientApis.questions.listQuestions(bank.id) })));
+      let latestTeachers = currentTeachers;
+      if (role === "Admin") latestTeachers = (await clientApis.users.list({ pageSize: 20 })).items.filter((item) => item.role === "Teacher" && item.status === "Active");
+      setItems(latestItems);
+      setTeachers(latestTeachers);
+      setSelectedId((current) => latestItems.some((item) => item.bank.id === current) ? current : latestItems[0]?.bank.id ?? "");
+    } catch (caught) {
+      setRefreshError(language === "en" && caught instanceof ApiError ? caught.detail : text.refreshError);
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   function openBank(bank?: QuestionBankDto) {
     setEditingBank(bank);
@@ -188,6 +268,39 @@ export function QuestionBankWorkspace({
       setBankModal(false);
     } catch (caught) {
       setError(message(caught, text.saveBankError));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function searchShareUser(event: React.FormEvent) {
+    event.preventDefault();
+    setSearching(true);
+    setError(undefined);
+    setShareUser(undefined);
+    try {
+      const found = await clientApis.users.findForChat(shareEmail.trim());
+      if (found.role === "Teacher") setShareUser(found);
+      else setError(text.notTeacher);
+    } catch (caught) {
+      setError(caught instanceof ApiError && !caught.isNotFound ? message(caught, text.noUser) : text.noUser);
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  async function shareBank() {
+    if (!selected || !shareUser) return;
+    setBusy(true);
+    setError(undefined);
+    setNotice(undefined);
+    try {
+      const email = shareUser.email;
+      await clientApis.questions.shareBank(selected.bank.id, { recipientEmail: email });
+      setShareModal(false);
+      setNotice(text.shareSuccess(email));
+    } catch (caught) {
+      setError(message(caught, text.shareError));
     } finally {
       setBusy(false);
     }
@@ -281,8 +394,17 @@ export function QuestionBankWorkspace({
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <AreaRefreshButton label={text.refresh} loadingLabel={text.refreshing} onRefresh={refreshBanks} disabled={refreshing || busy || bankModal || questionModal || importModal || shareModal} />
+      </div>
       {error ? (
         <div className="border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">{error}</div>
+      ) : null}
+      {refreshError ? (
+        <div role="alert" className="border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">{refreshError}</div>
+      ) : null}
+      {notice ? (
+        <div className="border border-primary/40 bg-primary/5 p-4 text-sm text-primary">{notice}</div>
       ) : null}
       <div className="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
         <QuestionBankSidebar
@@ -310,6 +432,22 @@ export function QuestionBankWorkspace({
                   >
                     <Pencil className="size-4" />
                   </button>
+                  {role === "Teacher" && selected.bank.teacherId === userId ? (
+                    <button
+                      onClick={() => {
+                        setShareEmail("");
+                        setShareUser(undefined);
+                        setError(undefined);
+                        setNotice(undefined);
+                        setShareModal(true);
+                      }}
+                      className="border border-border p-2 hover:bg-muted"
+                      aria-label={text.shareBank}
+                      title={text.shareBank}
+                    >
+                      <Share2 className="size-4" />
+                    </button>
+                  ) : null}
                   <button
                     onClick={() => removeBank(selected.bank)}
                     disabled={busy}
@@ -334,20 +472,69 @@ export function QuestionBankWorkspace({
                 </div>
               </div>
               {!selected.questions.length ? (
-                <div className="border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-                  {text.noQuestions}
-                </div>
+                <EmptyState mascotSrc="/assets/owlie/think.webp">{text.noQuestions}</EmptyState>
               ) : (
-                <div className="space-y-3">
-                  {selected.questions.map((question, index) => (
-                    <QuestionCard
-                      key={question.id}
-                      question={question}
-                      index={index}
-                      onEdit={() => openQuestion(question)}
-                      onDelete={() => removeQuestion(question)}
-                    />
-                  ))}
+                <div className="space-y-4">
+                  <div className="grid gap-3 rounded-xl border border-border bg-card p-3 sm:grid-cols-2 sm:p-4">
+                    <label className="grid gap-1.5 text-sm font-medium">
+                      <span>{text.difficulty}</span>
+                      <select
+                        value={difficultyFilter}
+                        onChange={(event) => setDifficultyFilter(event.target.value as "all" | QuestionDifficulty)}
+                        className={inputClass}
+                      >
+                        <option value="all">{text.allDifficulties}</option>
+                        <option value="Easy">{text.easy}</option>
+                        <option value="Medium">{text.medium}</option>
+                        <option value="Hard">{text.hard}</option>
+                      </select>
+                    </label>
+                    <label className="grid gap-1.5 text-sm font-medium">
+                      <span>{text.questionType}</span>
+                      <select
+                        value={typeFilter}
+                        onChange={(event) => setTypeFilter(event.target.value as "all" | QuestionType)}
+                        className={inputClass}
+                      >
+                        <option value="all">{text.allTypes}</option>
+                        <option value="MultipleChoice">{text.mcq}</option>
+                        <option value="FillInBlank">{text.fib}</option>
+                      </select>
+                    </label>
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground sm:col-span-2">
+                      <span aria-live="polite">{text.questionCount(filteredQuestions.length)}</span>
+                      {difficultyFilter !== "all" || typeFilter !== "all" ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDifficultyFilter("all");
+                            setTypeFilter("all");
+                          }}
+                          className="font-medium text-primary hover:underline"
+                        >
+                          {text.clearFilters}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                  {!filteredQuestions.length ? (
+                    <EmptyState mascotSrc="/assets/owlie/think.webp">{text.noMatchingQuestions}</EmptyState>
+                  ) : (
+                    <PaginatedChildren
+                      listClassName="space-y-3"
+                      resetKey={`${selected.bank.id}:${difficultyFilter}:${typeFilter}`}
+                    >
+                      {filteredQuestions.map((question, index) => (
+                        <QuestionCard
+                          key={question.id}
+                          question={question}
+                          index={index}
+                          onEdit={() => openQuestion(question)}
+                          onDelete={() => removeQuestion(question)}
+                        />
+                      ))}
+                    </PaginatedChildren>
+                  )}
                 </div>
               )}
             </div>
@@ -359,6 +546,81 @@ export function QuestionBankWorkspace({
         </main>
       </div>
 
+      {/* Share Modal */}
+      {shareModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button
+            className="absolute inset-0 bg-foreground/30 backdrop-blur-sm"
+            onClick={() => setShareModal(false)}
+            aria-label={language === "vi" ? "Đóng" : "Close"}
+          />
+          <ValidatedForm
+            onSubmit={searchShareUser}
+            className="relative w-full max-w-md space-y-5 rounded-2xl border border-border bg-card p-5 shadow-2xl sm:p-6"
+          >
+            <div className="flex justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold">{text.shareTitle}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{text.shareDesc}</p>
+              </div>
+              <button type="button" onClick={() => setShareModal(false)}>
+                <X className="size-5" />
+              </button>
+            </div>
+            <div className="flex items-start gap-2">
+              <label className="grid min-w-0 flex-1 gap-2 text-sm font-medium">
+                <span>{text.recipientEmail}<RequiredMark /></span>
+                <input
+                  required
+                  type="email"
+                  data-field-error="share-email"
+                  maxLength={255}
+                  value={shareEmail}
+                  onChange={(event) => {
+                    setShareEmail(event.target.value);
+                    setShareUser(undefined);
+                  }}
+                  className={inputClass}
+                />
+                <FieldError field="share-email" />
+              </label>
+              <button
+                disabled={searching}
+                className="mt-7 inline-flex h-10 shrink-0 items-center gap-2 bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+              >
+                <Search className="size-4" />
+                {searching ? text.searching : text.search}
+              </button>
+            </div>
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            {shareUser ? (
+              <div className="flex items-center gap-3 border border-border bg-muted/30 p-4">
+                <span className="flex size-11 shrink-0 items-center justify-center bg-primary/10 text-primary">
+                  <UserRound className="size-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{shareUser.fullName}</p>
+                  <p className="truncate text-sm text-muted-foreground">{shareUser.email}</p>
+                </div>
+              </div>
+            ) : null}
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setShareModal(false)} className="border border-border px-4 py-2 text-sm hover:bg-muted">
+                {text.cancel}
+              </button>
+              <button
+                type="button"
+                onClick={shareBank}
+                disabled={busy || !shareUser}
+                className="bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {busy ? text.sharing : text.share}
+              </button>
+            </div>
+          </ValidatedForm>
+        </div>
+      ) : null}
+
       {/* Bank Modal */}
       {bankModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -367,9 +629,9 @@ export function QuestionBankWorkspace({
             onClick={() => setBankModal(false)}
             aria-label={language === "vi" ? "Đóng" : "Close"}
           />
-          <form
+          <ValidatedForm
             onSubmit={saveBank}
-            className="relative w-full max-w-lg space-y-5 border border-border bg-card p-5 shadow-2xl sm:p-6"
+            className="relative w-full max-w-lg space-y-5 rounded-2xl border border-border bg-card p-5 shadow-2xl sm:p-6"
           >
             <div className="flex justify-between">
               <div>
@@ -384,31 +646,35 @@ export function QuestionBankWorkspace({
             </div>
             {role === "Admin" && !editingBank ? (
               <label className="grid gap-2 text-sm font-medium">
-                {text.teacher}
+                <span>{text.teacher}<RequiredMark /></span>
                 <select
                   required
+                  data-field-error="bank-teacher"
                   value={teacherId}
                   onChange={(event) => setTeacherId(event.target.value)}
                   className={inputClass}
                 >
                   <option value="">{text.selectTeacher}</option>
-                  {teachers.map((teacher) => (
+                  {currentTeachers.map((teacher) => (
                     <option key={teacher.id} value={teacher.id}>
                       {teacher.fullName}
                     </option>
                   ))}
                 </select>
+                <FieldError field="bank-teacher" />
               </label>
             ) : null}
             <label className="grid gap-2 text-sm font-medium">
-              {text.bankName}
+              <span>{text.bankName}<RequiredMark /></span>
               <input
                 required
+                data-field-error="bank-name"
                 maxLength={200}
                 value={bankName}
                 onChange={(event) => setBankName(event.target.value)}
                 className={inputClass}
               />
+              <FieldError field="bank-name" />
             </label>
             <label className="grid gap-2 text-sm font-medium">
               {text.bankDescription}
@@ -426,7 +692,7 @@ export function QuestionBankWorkspace({
             >
               {busy ? text.saving : text.saveBank}
             </button>
-          </form>
+          </ValidatedForm>
         </div>
       ) : null}
 
@@ -453,9 +719,9 @@ export function QuestionBankWorkspace({
             onClick={() => setQuestionModal(false)}
             aria-label={language === "vi" ? "Đóng" : "Close"}
           />
-          <form
+          <ValidatedForm
             onSubmit={saveQuestion}
-            className="relative max-h-[calc(100vh-1.5rem)] w-full max-w-2xl space-y-5 overflow-y-auto border border-border bg-card p-5 shadow-2xl sm:p-6"
+            className="relative max-h-[calc(100vh-1.5rem)] w-full max-w-2xl space-y-5 overflow-y-auto rounded-2xl border border-border bg-card p-5 shadow-2xl sm:p-6"
           >
             <div className="flex justify-between">
               <div>
@@ -474,7 +740,7 @@ export function QuestionBankWorkspace({
                 <button
                   type="button"
                   onClick={() => setType("MultipleChoice")}
-                  className={`border px-3 py-2 text-sm font-medium transition-colors ${
+                  className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
                     type === "MultipleChoice"
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
@@ -485,7 +751,7 @@ export function QuestionBankWorkspace({
                 <button
                   type="button"
                   onClick={() => setType("FillInBlank")}
-                  className={`border px-3 py-2 text-sm font-medium transition-colors ${
+                  className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
                     type === "FillInBlank"
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
@@ -497,15 +763,17 @@ export function QuestionBankWorkspace({
             ) : null}
 
             <label className="grid gap-2 text-sm font-medium">
-              {text.questionContent}
+              <span>{text.questionContent}<RequiredMark /></span>
               <textarea
                 required
+                data-field-error="question-content"
                 maxLength={4000}
                 rows={4}
                 value={content}
                 onChange={(event) => setContent(event.target.value)}
                 className={areaClass}
               />
+              <FieldError field="question-content" />
             </label>
 
             <label className="grid gap-2 text-sm font-medium">
@@ -524,7 +792,7 @@ export function QuestionBankWorkspace({
             {type === "MultipleChoice" ? (
               <fieldset className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <legend className="text-sm font-medium">{text.options}</legend>
+                  <legend className="text-sm font-medium">{text.options}<RequiredMark /></legend>
                   <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
                     <input
                       type="checkbox"
@@ -546,6 +814,7 @@ export function QuestionBankWorkspace({
                     />
                     <input
                       required
+                      data-field-error={`question-option-${index}`}
                       value={option}
                       onChange={(event) =>
                         setOptions((current) => current.map((value, i) => (i === index ? event.target.value : value)))
@@ -553,6 +822,7 @@ export function QuestionBankWorkspace({
                       placeholder={text.optionPlaceholder(index + 1)}
                       className={inputClass}
                     />
+                    <FieldError field={`question-option-${index}`} className="basis-full" />
                     {options.length > 2 ? (
                       <button
                         type="button"
@@ -562,7 +832,7 @@ export function QuestionBankWorkspace({
                             current === index ? 0 : current > index ? current - 1 : current,
                           );
                         }}
-                        className="border border-border px-3 py-2 hover:bg-muted"
+                        className="rounded-lg border border-border px-3 py-2 hover:bg-muted"
                         aria-label={text.removeOption}
                         title={text.removeOption}
                       >
@@ -583,11 +853,12 @@ export function QuestionBankWorkspace({
 
             {type === "FillInBlank" ? (
               <fieldset className="space-y-3">
-                <legend className="text-sm font-medium">{text.expectedAnswers}</legend>
+                <legend className="text-sm font-medium">{text.expectedAnswers}<RequiredMark /></legend>
                 {answers.map((answer, index) => (
                   <div key={index} className="flex gap-2">
                     <input
                       required
+                      data-field-error={`question-answer-${index}`}
                       value={answer}
                       onChange={(event) =>
                         setAnswers((current) => current.map((value, i) => (i === index ? event.target.value : value)))
@@ -595,6 +866,7 @@ export function QuestionBankWorkspace({
                       placeholder={text.blankPlaceholder(editingQuestion ? (answerOrders[index] ?? index + 1) : index + 1)}
                       className={inputClass}
                     />
+                    <FieldError field={`question-answer-${index}`} className="basis-full" />
                     {answers.length > 1 ? (
                       <button
                         type="button"
@@ -602,7 +874,7 @@ export function QuestionBankWorkspace({
                           setAnswers((current) => current.filter((_, i) => i !== index));
                           setAnswerOrders((current) => current.filter((_, i) => i !== index));
                         }}
-                        className="border border-border px-3 hover:bg-muted"
+                        className="rounded-lg border border-border px-3 hover:bg-muted"
                       >
                         <X className="size-4" />
                       </button>
@@ -630,7 +902,7 @@ export function QuestionBankWorkspace({
             >
               {busy ? text.saving : text.saveQuestion}
             </button>
-          </form>
+          </ValidatedForm>
         </div>
       ) : null}
     </div>

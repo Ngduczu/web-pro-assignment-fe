@@ -13,6 +13,7 @@ import { AuthSubmit } from "@/components/auth/auth-submit";
 import { FormMessage } from "@/components/auth/form-message";
 import { useLanguage } from "@/lib/i18n";
 import { localizeAuthMessage } from "@/lib/auth/localized-message";
+import { RequiredMark } from "@/components/ui/form-field-feedback";
 
 type ForgotValues = z.infer<typeof forgotPasswordSchema>;
 
@@ -52,7 +53,7 @@ export default function ForgotPasswordPage() {
             </Link>
           </div>
         ) : null}
-        <div className="space-y-2"><label htmlFor="email" className="text-sm font-medium">{t("email")}</label><input id="email" type="email" autoComplete="email" {...register("email")} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />{errors.email ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.email.message)}</p> : null}</div>
+        <div className="space-y-2"><label htmlFor="email" className="text-sm font-medium">{t("email")}<RequiredMark /></label><input id="email" type="email" autoComplete="email" {...register("email")} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />{errors.email ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.email.message)}</p> : null}</div>
         <AuthSubmit loading={isSubmitting} disabled={cooldown > 0}>{cooldown > 0 ? `${t("retryIn")} ${cooldown}s` : t("sendResetCode")}</AuthSubmit>
         <p className="text-xs leading-5 text-muted-foreground">{t("accountPrivacyNotice")}</p>
       </form>

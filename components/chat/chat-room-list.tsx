@@ -4,6 +4,8 @@ import { useRef, useState, type KeyboardEvent } from "react";
 import { useLanguage } from "@/lib/i18n";
 import { BookOpen, MessageCircle, Plus, UserRound } from "lucide-react";
 import type { ChatRoomDto, CourseDto } from "@/types/api";
+import { DEFAULT_PAGE_SIZE, PaginationControls } from "@/components/ui/paginated-list";
+import Image from "next/image";
 
 type ConversationTab = "personal" | "groups";
 
@@ -52,11 +54,16 @@ export function ChatRoomList({
   const isVi = language === "vi";
   const selectedRoom = rooms.find((room) => room.id === selectedId);
   const [activeTab, setActiveTab] = useState<ConversationTab>(selectedRoom?.courseId ? "groups" : "personal");
+  const [pagination, setPagination] = useState({ page: 1, tab: activeTab });
   const personalTabRef = useRef<HTMLButtonElement>(null);
   const groupsTabRef = useRef<HTMLButtonElement>(null);
   const personalRooms = rooms.filter((room) => !room.courseId);
   const groupRooms = rooms.filter((room) => Boolean(room.courseId));
   const visibleRooms = activeTab === "personal" ? personalRooms : groupRooms;
+  const totalPages = Math.max(1, Math.ceil(visibleRooms.length / DEFAULT_PAGE_SIZE));
+  const page = pagination.tab === activeTab ? pagination.page : 1;
+  const currentPage = Math.min(page, totalPages);
+  const pageRooms = visibleRooms.slice((currentPage - 1) * DEFAULT_PAGE_SIZE, currentPage * DEFAULT_PAGE_SIZE);
   const roomCourseIds = new Set(rooms.flatMap((room) => (room.courseId ? [room.courseId] : [])));
   const missingCourses = courses.filter((course) => !roomCourseIds.has(course.id));
 
@@ -155,7 +162,7 @@ export function ChatRoomList({
       {/* Room list */}
       <div id="chat-tab-panel" role="tabpanel" aria-labelledby={activeTab === "personal" ? "chat-tab-personal" : "chat-tab-groups"} className="chat-scrollbar min-h-0 flex-1 space-y-1 overflow-y-auto p-2.5">
         {visibleRooms.length ? (
-          visibleRooms.map((room) => {
+          pageRooms.map((room) => {
             const isSelected = selectedId === room.id;
             const isCourse = Boolean(room.courseId);
             const label = roomLabel(room, courses, currentUserId, directLabels, language);
@@ -221,7 +228,7 @@ export function ChatRoomList({
           })
         ) : (
           <div className="flex h-56 flex-col items-center justify-center p-5 text-center text-sm text-muted-foreground">
-            <MessageCircle className="mb-3 size-8 opacity-40" />
+            <Image src="/assets/owlie/hello.webp" alt="" width={72} height={72} sizes="72px" className="mb-2 size-16 object-contain" />
             <p className="font-medium text-foreground">{activeTab === "personal" ? (isVi ? "Chưa có tin nhắn cá nhân" : "No personal messages yet") : (isVi ? "Chưa có tin nhắn nhóm" : "No group messages yet")}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               {activeTab === "personal"
@@ -230,6 +237,7 @@ export function ChatRoomList({
             </p>
           </div>
         )}
+        <PaginationControls page={currentPage} totalItems={visibleRooms.length} onPageChange={(nextPage) => setPagination({ page: nextPage, tab: activeTab })} />
       </div>
     </aside>
   );

@@ -6,10 +6,11 @@ import { clientApis } from "@/lib/api/client-apis";
 import { ApiError } from "@/lib/api/errors";
 import { useLanguage } from "@/lib/i18n";
 import type { ExaminationAttemptResultDto, ExaminationDto, ExaminationSubmitReason, PaginatedResponse } from "@/types/api";
+import { AreaRefreshButton } from "@/components/ui/area-refresh-button";
 
 const copy = {
   en: {
-    title: "Class attempt history", description: "Review each participant's progress, result and integrity signals.",
+    title: "Class attempt history", description: "Review each participant's progress, result and integrity signals.", refresh: "Refresh results", refreshing: "Refreshing...",
     student: "Student", status: "Status", action: "Action", started: "Started", submitted: "Submitted", result: "Result", violations: "Violations", noAttempts: "No students have attempted this examination yet.",
     active: "In progress", pending: "Pending release", previous: "Previous", next: "Next", page: "Page", of: "of",
     loadError: "Unable to load examination results.", reconcile: "Auto-submit", reconciling: "Submitting...",
@@ -17,7 +18,7 @@ const copy = {
     exportResults: "Export results", exportingResults: "Preparing XLSX...", exportError: "Unable to export examination results.",
   },
   vi: {
-    title: "Lịch sử làm bài của lớp", description: "Theo dõi tiến độ, kết quả và tín hiệu vi phạm của từng học viên.",
+    title: "Lịch sử làm bài của lớp", description: "Theo dõi tiến độ, kết quả và tín hiệu vi phạm của từng học viên.", refresh: "Làm mới kết quả", refreshing: "Đang làm mới...",
     student: "Học viên", status: "Trạng thái", action: "Thao tác", started: "Bắt đầu", submitted: "Nộp bài", result: "Kết quả", violations: "Vi phạm", noAttempts: "Chưa có học viên nào làm kỳ thi này.",
     active: "Đang làm", pending: "Chờ công bố", previous: "Trước", next: "Sau", page: "Trang", of: "trên",
     loadError: "Không thể tải kết quả kỳ thi.", reconcile: "Tự động nộp", reconciling: "Đang nộp...",
@@ -66,10 +67,10 @@ export function ExaminationResults({ examination, initial, canAutoSubmit = false
   async function exportResults() {
     setExporting(true); setError(undefined);
     try {
-      const firstPage = await clientApis.examinations.listAttempts(examination.id, { page: 1, pageSize: 100 });
+      const firstPage = await clientApis.examinations.listAttempts(examination.id, { page: 1, pageSize: 20 });
       const items = [...firstPage.items];
       for (let page = 2; page <= firstPage.totalPages; page++) {
-        const nextPage = await clientApis.examinations.listAttempts(examination.id, { page, pageSize: 100 });
+        const nextPage = await clientApis.examinations.listAttempts(examination.id, { page, pageSize: 20 });
         items.push(...nextPage.items);
       }
 
@@ -123,7 +124,7 @@ export function ExaminationResults({ examination, initial, canAutoSubmit = false
   }
 
   return <section className="space-y-5">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-lg font-semibold">{text.title}</h2><p className="mt-1 text-sm text-muted-foreground">{text.description}</p></div><button type="button" onClick={exportResults} disabled={exporting || !data.totalCount} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"><Download className="size-4" />{exporting ? text.exportingResults : text.exportResults}</button></div>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-lg font-semibold">{text.title}</h2><p className="mt-1 text-sm text-muted-foreground">{text.description}</p></div><div className="flex flex-wrap gap-2"><AreaRefreshButton label={text.refresh} loadingLabel={text.refreshing} onRefresh={() => go(data.page)} disabled={busy || exporting || Boolean(busyAttemptId)} /><button type="button" onClick={exportResults} disabled={exporting || !data.totalCount} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"><Download className="size-4" />{exporting ? text.exportingResults : text.exportResults}</button></div></div>
     {error ? <p className="border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p> : null}
     {!data.items.length ? <div className="border border-dashed border-border p-6 text-sm text-muted-foreground">{text.noAttempts}</div> : (
       <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-xs">

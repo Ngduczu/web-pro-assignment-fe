@@ -1,4 +1,4 @@
-export type Role = "Student" | "Teacher" | "Admin";
+export type Role = "Student" | "Teacher" | "Admin" | "System";
 export type AccountStatus = "Active" | "Inactive" | "Disabled" | "Banned";
 export type CourseStatus = "Open" | "Closed";
 export type EnrollmentStatus = "Waiting" | "Accepted" | "Rejected" | "Cancelled";
@@ -48,18 +48,18 @@ export type SessionResponse = { expiresAt: string; refreshTokenExpiresAt: string
 export type AuthenticatedSession = { user: UserProfileDto; expiresAt: string };
 
 export type UserProfileDto = { id: string; email: string; fullName: string; phone: string | null; role: Role; status: AccountStatus; avatarUrl: string | null; createdAt: string; hasPassword: boolean; isGoogleLinked?: boolean | null };
-export type UserQuery = { search?: string; page?: number; pageSize?: number };
+export type UserQuery = { search?: string; role?: Role; status?: AccountStatus; page?: number; pageSize?: number };
 export type AdminCreateUserRequest = { email: string; fullName: string; phone?: string | null; password: string; role: Role };
 export type UpdateUserStatusRequest = { status: AccountStatus };
 export type AdminUpdateUserRequest = { fullName: string; phone?: string | null; role: Role };
 export type UpdateMyProfileRequest = { fullName: string; phone?: string | null };
 export type ChangeMyPasswordRequest = { currentPassword?: string | null; newPassword: string; passwordConfirm: string };
-export type ChatUserSearchDto = { id: string; email: string; fullName: string; avatarUrl: string | null };
+export type ChatUserSearchDto = { id: string; email: string; fullName: string; avatarUrl: string | null; role: Role };
 
 export type CreateCourseRequest = { name: string; description?: string | null; teacherId: string; maxStudents: number; status?: CourseStatus };
 export type UpdateCourseRequest = { name: string; description?: string | null; maxStudents: number; status: CourseStatus };
 export type CourseQuery = { search?: string; status?: CourseStatus; teacherId?: string; includeDeleted?: boolean; page?: number; pageSize?: number };
-export type CourseDto = { id: string; name: string; description: string | null; teacherId: string; maxStudents: number; status: CourseStatus; createdAt: string; modifiedAt: string; deletedAt: string | null };
+export type CourseDto = { id: string; name: string; description: string | null; teacherId: string; maxStudents: number; acceptedStudentCount: number; status: CourseStatus; createdAt: string; modifiedAt: string; deletedAt: string | null };
 
 export type EnrollmentQuery = { page?: number; pageSize?: number };
 export type EnrollmentStudentDto = { id: string; fullName: string; email: string };
@@ -82,6 +82,7 @@ export type SubmissionDto = { id: string; exerciseId: string; studentId: string;
 
 export type CreateQuestionBankRequest = { teacherId: string; name: string; description?: string | null };
 export type UpdateQuestionBankRequest = { name: string; description?: string | null };
+export type ShareQuestionBankRequest = { recipientEmail: string };
 export type QuestionBankDto = { id: string; teacherId: string; name: string; description: string | null; createdAt: string; modifiedAt: string };
 export type MultipleChoiceOptionInput = { content: string; isCorrect: boolean };
 export type FillInBlankAnswerInput = { blankOrder: number; expectedAnswer: string };

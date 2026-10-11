@@ -7,6 +7,9 @@ import { ApiError } from "@/lib/api/errors";
 import { clientApis } from "@/lib/api/client-apis";
 import type { CourseDto, EnrollmentDto } from "@/types/api";
 import { useLanguage } from "@/lib/i18n";
+import { FieldError, RequiredMark, ValidatedForm } from "@/components/ui/form-field-feedback";
+import { PaginatedChildren } from "@/components/ui/paginated-list";
+import { AreaRefreshButton } from "@/components/ui/area-refresh-button";
 
 const copy = {
   en: {
@@ -41,6 +44,7 @@ const copy = {
     deleteError: "Unable to delete course.",
     restoreError: "Unable to restore course.",
     enrollmentError: "Unable to update enrollment.",
+    refresh: "Refresh course and enrollments", refreshing: "Refreshing...", refreshError: "Unable to refresh course data.",
   },
   vi: {
     closeEditor: "Đóng trình chỉnh sửa",
@@ -74,6 +78,7 @@ const copy = {
     deleteError: "Không thể xóa khóa học.",
     restoreError: "Không thể khôi phục khóa học.",
     enrollmentError: "Không thể cập nhật đăng ký.",
+    refresh: "Làm mới khóa học và đăng ký", refreshing: "Đang làm mới...", refreshError: "Không thể làm mới dữ liệu khóa học.",
   },
 };
 
@@ -96,6 +101,20 @@ export function CourseManagementPanel({
   const [status, setStatus] = useState(initialCourse.status);
   const [error, setError] = useState<string>();
   const [pending, setPending] = useState(false);
+
+  async function refreshCourseData() {
+    setError(undefined);
+    try {
+      const [latestCourse, latestEnrollments] = await Promise.all([
+        clientApis.courses.get(course.id, Boolean(course.deletedAt)),
+        clientApis.enrollments.listByCourse(course.id, { pageSize: 20 }).then((result) => result.items),
+      ]);
+      setCourse(latestCourse);
+      setEnrollments(latestEnrollments);
+    } catch (caught) {
+      setError(language === "en" && caught instanceof ApiError ? caught.detail : text.refreshError);
+    }
+  }
 
   const statusLabel = (value: EnrollmentDto["status"]) =>
     ({
@@ -186,6 +205,7 @@ export function CourseManagementPanel({
 
       <section className="rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-5">
       <div className="flex flex-wrap gap-2">
+        <AreaRefreshButton label={text.refresh} loadingLabel={text.refreshing} onRefresh={refreshCourseData} disabled={pending || editing} />
         <button
           type="button"
           onClick={() => setEditing((current) => !current)}
@@ -218,14 +238,15 @@ export function CourseManagementPanel({
       </div>
 
       {editing ? (
-        <form onSubmit={saveCourse} className="mt-5 max-w-2xl space-y-4 rounded-xl border border-border bg-muted/20 p-4 sm:p-5">
-          <div className="space-y-2"><label htmlFor="edit-course-name" className="text-sm font-medium">{text.courseName}</label><input
+        <ValidatedForm onSubmit={saveCourse} className="mt-5 max-w-2xl space-y-4 rounded-xl border border-border bg-muted/20 p-4 sm:p-5">
+          <div className="space-y-2"><label htmlFor="edit-course-name" className="text-sm font-medium">{text.courseName}<RequiredMark /></label><input
             id="edit-course-name"
             required
+            data-field-error="edit-course-name"
             value={name}
             onChange={(event) => setName(event.target.value)}
             className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus:border-primary focus-visible:ring-2 focus-visible:ring-ring/40"
-          /></div>
+          /><FieldError field="edit-course-name" /></div>
           <div className="space-y-2"><label htmlFor="edit-course-description" className="text-sm font-medium">{text.description}</label><textarea
             id="edit-course-description"
             value={description}
@@ -234,15 +255,16 @@ export function CourseManagementPanel({
             className="w-full resize-y rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none transition focus:border-primary focus-visible:ring-2 focus-visible:ring-ring/40"
           /></div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-2"><label htmlFor="edit-course-capacity" className="text-sm font-medium">{text.capacity}</label><input
+            <div className="space-y-2"><label htmlFor="edit-course-capacity" className="text-sm font-medium">{text.capacity}<RequiredMark /></label><input
               id="edit-course-capacity"
               required
+              data-field-error="edit-course-capacity"
               min="1"
               type="number"
               value={maxStudents}
               onChange={(event) => setMaxStudents(event.target.value)}
               className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus:border-primary focus-visible:ring-2 focus-visible:ring-ring/40"
-            /></div>
+            /><FieldError field="edit-course-capacity" /></div>
             <div className="space-y-2"><label htmlFor="edit-course-status" className="text-sm font-medium">{text.courseStatus}</label><select
               id="edit-course-status"
               value={status}
@@ -260,7 +282,7 @@ export function CourseManagementPanel({
           >
             {pending ? text.saving : text.save}
           </button>
-        </form>
+        </ValidatedForm>
       ) : null}
       </section>
 
@@ -274,7 +296,7 @@ export function CourseManagementPanel({
         {!enrollments.length ? (
           <p className="rounded-xl border border-dashed border-border bg-muted/20 p-5 text-sm text-muted-foreground">{text.empty}</p>
         ) : (
-          <div className="space-y-2">
+          <PaginatedChildren listClassName="space-y-2">
             {enrollments.map((enrollment) => (
               <div
                 key={enrollment.id}
@@ -320,7 +342,7 @@ export function CourseManagementPanel({
                 </div>
               </div>
             ))}
-          </div>
+          </PaginatedChildren>
         )}
       </section>
     </div>

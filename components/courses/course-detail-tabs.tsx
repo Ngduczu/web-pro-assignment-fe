@@ -7,6 +7,9 @@ import { clientApis } from "@/lib/api/client-apis";
 import { ApiError } from "@/lib/api/errors";
 import { useLanguage } from "@/lib/i18n";
 import type { ExaminationDto, ExerciseDto, LessonDto, StudentExaminationDto } from "@/types/api";
+import { PaginatedChildren } from "@/components/ui/paginated-list";
+import { EmptyState } from "@/components/ui/page-chrome";
+import { AreaRefreshButton } from "@/components/ui/area-refresh-button";
 
 export type CourseDetailTab = "lessons" | "assignments" | "examinations" | "management";
 
@@ -38,13 +41,18 @@ type CourseDetailTabsProps = {
   examinationAction?: ReactNode;
   management?: ReactNode;
   initialTab?: CourseDetailTab;
+  isStudent?: boolean;
 };
 
-export function CourseDetailTabs({ courseId, lessons, exercises, examinations, canManage = false, lessonAction, assignmentAction, examinationAction, management, initialTab = "lessons" }: CourseDetailTabsProps) {
+export function CourseDetailTabs({ courseId, lessons, exercises, examinations, canManage = false, lessonAction, assignmentAction, examinationAction, management, initialTab = "lessons", isStudent = false }: CourseDetailTabsProps) {
   const { language } = useLanguage();
   const text = copy[language];
   const [active, setActive] = useState<CourseDetailTab>(initialTab);
   const [orderedLessons, setOrderedLessons] = useState(() => [...lessons].sort((a, b) => a.order - b.order));
+  const [currentExercises, setCurrentExercises] = useState(exercises);
+  const [currentExaminations, setCurrentExaminations] = useState(examinations);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string>();
   const [draggedLessonId, setDraggedLessonId] = useState<string>();
   const [reordering, setReordering] = useState(false);
   const [reorderError, setReorderError] = useState<string>();
@@ -52,10 +60,28 @@ export function CourseDetailTabs({ courseId, lessons, exercises, examinations, c
   const status = (value: string) => ({ Draft: text.draft, Published: text.published, Closed: text.closed })[value as "Draft" | "Published" | "Closed"] ?? value;
   const tabs = [
     { id: "lessons" as const, label: text.lessons, icon: BookOpen, count: orderedLessons.length },
-    { id: "assignments" as const, label: text.assignments, icon: ClipboardList, count: exercises.length },
-    { id: "examinations" as const, label: text.exams, icon: GraduationCap, count: examinations.length },
+    { id: "assignments" as const, label: text.assignments, icon: ClipboardList, count: currentExercises.length },
+    { id: "examinations" as const, label: text.exams, icon: GraduationCap, count: currentExaminations.length },
     ...(management ? [{ id: "management" as const, label: text.management, icon: Settings2 }] : []),
   ];
+
+  async function refreshActiveArea() {
+    setRefreshing(true);
+    setRefreshError(undefined);
+    try {
+      if (active === "lessons") {
+        setOrderedLessons([...await clientApis.lessons.list(courseId)].sort((a, b) => a.order - b.order));
+      } else if (active === "assignments") {
+        setCurrentExercises(await clientApis.assignments.listExercises(courseId));
+      } else if (active === "examinations") {
+        setCurrentExaminations(isStudent ? await clientApis.examinations.listAvailable(courseId) : await clientApis.examinations.listByCourse(courseId));
+      }
+    } catch (caught) {
+      setRefreshError(language === "en" && caught instanceof ApiError ? caught.detail : language === "vi" ? "Không thể làm mới nội dung." : "Unable to refresh this content.");
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   async function saveLessonOrder(next: LessonDto[], previous: LessonDto[]) {
     setOrderedLessons(next.map((lesson, index) => ({ ...lesson, order: index + 1 })));
@@ -95,27 +121,29 @@ export function CourseDetailTabs({ courseId, lessons, exercises, examinations, c
     <div role="tablist" aria-label={text.tabsLabel} className="flex w-full gap-1.5 overflow-x-auto rounded-xl border border-border bg-muted/50 p-1.5 sm:w-fit">
       {tabs.map(({ id, label, icon: Icon, count }) => <button key={id} type="button" role="tab" aria-selected={active === id} onClick={() => setActive(id)} className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition sm:px-4 ${active === id ? "bg-card text-primary shadow-xs" : "text-muted-foreground hover:bg-background hover:text-foreground"}`}><Icon className="size-4" />{label}{count !== undefined ? <span className={`rounded-full px-1.5 py-0.5 text-xs ${active === id ? "bg-primary/10 text-primary" : "bg-background text-muted-foreground"}`}>{count}</span> : null}</button>)}
     </div>
+    {active !== "management" ? <div className="flex justify-end"><AreaRefreshButton label={language === "vi" ? "Làm mới nội dung" : "Refresh content"} loadingLabel={language === "vi" ? "Đang làm mới..." : "Refreshing..."} onRefresh={refreshActiveArea} disabled={refreshing || reordering} /></div> : null}
+    {refreshError ? <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{refreshError}</p> : null}
 
     {active === "lessons" ? <section role="tabpanel" className="space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><h2 className="text-lg font-semibold">{text.lessons}</h2><p className="mt-1 text-sm text-muted-foreground">{text.lessonDescription}</p>{canManage && orderedLessons.length > 1 ? <p className="mt-2 text-xs text-muted-foreground">{text.reorderHint}</p> : null}</div>{lessonAction ? <div className="shrink-0">{lessonAction}</div> : null}</div>
       {reordering ? <p role="status" className="text-sm text-primary">{text.savingOrder}</p> : null}
       {reorderError ? <p role="alert" className="border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{reorderError}</p> : null}
-      {!orderedLessons.length ? <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-sm text-muted-foreground">{text.noLessons}</div> : <div className="space-y-2">
+      {!orderedLessons.length ? <EmptyState mascotSrc="/assets/owlie/read.webp">{text.noLessons}</EmptyState> : <PaginatedChildren listClassName="space-y-2">
         {orderedLessons.map((lesson, index) => <div key={lesson.id} draggable={canManage && !reordering} onDragStart={(event) => { setDraggedLessonId(lesson.id); event.dataTransfer.effectAllowed = "move"; }} onDragOver={(event) => { if (canManage) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; } }} onDrop={(event) => dropLesson(event, lesson.id)} onDragEnd={() => setDraggedLessonId(undefined)} className={`flex items-center gap-2 rounded-xl border border-border bg-card px-2 py-2 transition ${draggedLessonId === lesson.id ? "border-primary/40 bg-primary/5 opacity-60" : "hover:border-primary/30 hover:bg-muted/30"}`}>
           {canManage ? <div className="flex shrink-0 items-center"><span title={text.dragLesson} className="hidden cursor-grab rounded-md p-2 text-muted-foreground active:cursor-grabbing sm:inline-flex"><GripVertical className="size-4" /></span><div className="flex sm:hidden"><button type="button" disabled={reordering || index === 0} onClick={() => moveLesson(index, index - 1)} aria-label={`${text.moveUp}: ${lesson.name}`} className="rounded-md p-2 text-muted-foreground transition hover:bg-muted disabled:opacity-25"><ChevronUp className="size-4" /></button><button type="button" disabled={reordering || index === orderedLessons.length - 1} onClick={() => moveLesson(index, index + 1)} aria-label={`${text.moveDown}: ${lesson.name}`} className="rounded-md p-2 text-muted-foreground transition hover:bg-muted disabled:opacity-25"><ChevronDown className="size-4" /></button></div></div> : null}
           <Link href={`/courses/${courseId}/lessons/${lesson.id}`} className="flex min-h-11 min-w-0 flex-1 flex-col gap-1 py-1 pr-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4"><span className="min-w-0 font-medium"><span className="mr-2 text-muted-foreground">{String(index + 1).padStart(2, "0")}</span>{lesson.name}</span><span className="shrink-0 text-xs font-medium text-muted-foreground">{status(lesson.status)}</span></Link>
         </div>)}
-      </div>}
+      </PaginatedChildren>}
     </section> : null}
 
     {active === "assignments" ? <section role="tabpanel" className="space-y-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><h2 className="text-lg font-semibold">{text.assignments}</h2><p className="mt-1 text-sm text-muted-foreground">{text.assignmentDescription}</p></div>{assignmentAction ? <div className="shrink-0">{assignmentAction}</div> : null}</div>
-      {!exercises.length ? <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-sm text-muted-foreground">{text.noAssignments}</div> : <div className="grid gap-2">{exercises.map((exercise) => <Link key={exercise.id} href={`/courses/${courseId}/exercises/${exercise.id}`} className="flex min-h-20 flex-col justify-center gap-2 rounded-xl border border-border bg-card px-4 py-3 transition hover:border-primary/30 hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5"><div className="min-w-0"><span className="font-semibold">{exercise.title}</span><p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{exercise.description || text.noDescription}</p></div><span className="shrink-0 text-xs font-medium text-muted-foreground">{status(exercise.status)}{exercise.dueAt ? ` · ${text.due} ${date.format(new Date(exercise.dueAt))}` : ""}</span></Link>)}</div>}
+      {!currentExercises.length ? <EmptyState mascotSrc="/assets/owlie/think.webp">{text.noAssignments}</EmptyState> : <PaginatedChildren listClassName="grid gap-2">{currentExercises.map((exercise) => <Link key={exercise.id} href={`/courses/${courseId}/exercises/${exercise.id}`} className="flex min-h-20 flex-col justify-center gap-2 rounded-xl border border-border bg-card px-4 py-3 transition hover:border-primary/30 hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5"><div className="min-w-0"><span className="font-semibold">{exercise.title}</span><p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{exercise.description || text.noDescription}</p></div><span className="shrink-0 text-xs font-medium text-muted-foreground">{status(exercise.status)}{exercise.dueAt ? ` · ${text.due} ${date.format(new Date(exercise.dueAt))}` : ""}</span></Link>)}</PaginatedChildren>}
     </section> : null}
 
     {active === "examinations" ? <section role="tabpanel" className="space-y-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><h2 className="text-lg font-semibold">{text.exams}</h2><p className="mt-1 text-sm text-muted-foreground">{text.examDescription}</p><Link href="/exams" className="mt-2 inline-block text-sm font-medium text-primary hover:underline">{text.allExams}</Link></div>{examinationAction ? <div className="shrink-0 sm:max-w-sm">{examinationAction}</div> : null}</div>
-      {!examinations.length ? <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-sm text-muted-foreground">{text.noExams}</div> : <div className="grid gap-2">{examinations.map((exam) => <Link key={exam.id} href={`/courses/${courseId}/examinations/${exam.id}`} className="flex min-h-20 flex-col justify-center gap-2 rounded-xl border border-border bg-card px-4 py-3 transition hover:border-primary/30 hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5"><div className="min-w-0"><span className="font-semibold">{exam.title}</span><p className="mt-1 text-sm text-muted-foreground">{exam.questionCount} {text.questions} · {exam.durationMinutes} {text.minutes}</p></div><span className="shrink-0 text-xs font-medium text-muted-foreground">{status(exam.status)} · {date.format(new Date(exam.startAt))}</span></Link>)}</div>}
+      {!currentExaminations.length ? <EmptyState mascotSrc="/assets/owlie/think.webp">{text.noExams}</EmptyState> : <PaginatedChildren listClassName="grid gap-2">{currentExaminations.map((exam) => <Link key={exam.id} href={`/courses/${courseId}/examinations/${exam.id}`} className="flex min-h-20 flex-col justify-center gap-2 rounded-xl border border-border bg-card px-4 py-3 transition hover:border-primary/30 hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5"><div className="min-w-0"><span className="font-semibold">{exam.title}</span><p className="mt-1 text-sm text-muted-foreground">{exam.questionCount} {text.questions} · {exam.durationMinutes} {text.minutes}</p></div><span className="shrink-0 text-xs font-medium text-muted-foreground">{status(exam.status)} · {date.format(new Date(exam.startAt))}</span></Link>)}</PaginatedChildren>}
     </section> : null}
 
     {active === "management" && management ? <section role="tabpanel">{management}</section> : null}

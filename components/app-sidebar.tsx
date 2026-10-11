@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { BookOpen, ChevronLeft, ChevronRight, ClipboardCheck, Files, LayoutDashboard, MessageCircle, Settings2, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
+import type { Role } from "@/types/api";
 
-type Role = "Student" | "Teacher" | "Admin";
+export type { Role };
 
 type NavigationItem = {
   label: string;
@@ -17,27 +19,26 @@ type NavigationItem = {
 };
 
 const navigation: NavigationItem[] = [
-  { label: "Overview", href: "/", icon: LayoutDashboard, roles: ["Student", "Teacher", "Admin"] },
-  { label: "Courses", href: "/courses", icon: BookOpen, roles: ["Student", "Teacher", "Admin"] },
-  { label: "Examinations", href: "/exams", icon: ClipboardCheck, roles: ["Student", "Teacher", "Admin"] },
-  { label: "Question banks", href: "/question-banks", icon: Files, roles: ["Teacher", "Admin"] },
-  { label: "Messages", href: "/chat", icon: MessageCircle, roles: ["Student", "Teacher", "Admin"] },
-  { label: "Users", href: "/admin", icon: Users, roles: ["Admin"] },
+  { label: "Overview", href: "/", icon: LayoutDashboard, roles: ["Student", "Teacher", "Admin", "System"] },
+  { label: "Courses", href: "/courses", icon: BookOpen, roles: ["Student", "Teacher", "Admin", "System"] },
+  { label: "Examinations", href: "/exams", icon: ClipboardCheck, roles: ["Student", "Teacher", "Admin", "System"] },
+  { label: "Question banks", href: "/question-banks", icon: Files, roles: ["Teacher", "Admin", "System"] },
+  { label: "Messages", href: "/chat", icon: MessageCircle, roles: ["Student", "Teacher", "Admin", "System"] },
+  { label: "Users", href: "/admin", icon: Users, roles: ["Admin", "System"] },
 ];
 
-// Keep the brand mark isolated so the club logo can replace the monogram later.
 function SidebarBrandMark() {
   return (
-    <span
+    <Image
       data-slot="sidebar-brand-mark"
-      aria-hidden="true"
-      className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-sidebar-primary text-lg font-bold text-sidebar-primary-foreground ring-1 ring-sidebar-primary/15"
-    >
-      S
-    </span>
+      src="/logo.png"
+      alt=""
+      width={40}
+      height={40}
+      className="size-10 shrink-0 rounded-xl object-cover"
+    />
   );
 }
-
 type AppSidebarProps = {
   role: Role;
   mobile?: boolean;
@@ -154,4 +155,3 @@ export function AppSidebar({ role, mobile = false, collapsed = false, onNavigate
   );
 }
 
-export type { Role };
