@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | SFIT Study",
+  title: "Privacy Policy",
   description:
     "Learn how SFIT Study handles account data, course information, authentication cookies, assessment records, and student privacy in the LMS platform.",
   alternates: {
