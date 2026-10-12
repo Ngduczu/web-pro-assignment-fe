@@ -62,6 +62,8 @@ export type CourseQuery = { search?: string; status?: CourseStatus; teacherId?: 
 export type CourseDto = { id: string; name: string; description: string | null; teacherId: string; maxStudents: number; acceptedStudentCount: number; status: CourseStatus; createdAt: string; modifiedAt: string; deletedAt: string | null };
 
 export type EnrollmentQuery = { page?: number; pageSize?: number };
+export type AddStudentResultStatus = "Added" | "AlreadyAccepted" | "InvalidEmail" | "NotFound" | "NotStudent" | "Inactive" | "CourseFull";
+export type AddStudentsByEmailRequest = { emails: string[] };
 export type EnrollmentStudentDto = { id: string; fullName: string; email: string };
 export type EnrollmentCourseDto = { id: string; name: string; status: CourseStatus };
 export type EnrollmentDto = { id: string; studentId: string; courseId: string; status: EnrollmentStatus; student: EnrollmentStudentDto | null; createdAt: string; modifiedAt: string; course: EnrollmentCourseDto | null };

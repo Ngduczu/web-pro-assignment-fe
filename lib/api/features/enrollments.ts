@@ -1,8 +1,11 @@
 import type { ApiTransport } from "@/lib/api/transport";
-import type { EnrollmentDto, EnrollmentQuery, PaginatedResponse } from "@/types/api";
+import type { AddStudentResultStatus, AddStudentsByEmailRequest, EnrollmentDto, EnrollmentQuery, PaginatedResponse } from "@/types/api";
+
+export type AddStudentResultDto = { email: string; status: AddStudentResultStatus; enrollment: EnrollmentDto | null };
 
 export function createEnrollmentsApi(request: ApiTransport) {
   return {
+    addByEmail: (courseId: string, body: AddStudentsByEmailRequest) => request<AddStudentResultDto[]>(`/courses/${courseId}/enrollments/by-email`, { method: "POST", body }),
     request: (courseId: string) => request<EnrollmentDto>(`/courses/${courseId}/enrollments`, { method: "POST" }),
     listByCourse: (courseId: string, query?: EnrollmentQuery) => request<PaginatedResponse<EnrollmentDto>>(`/courses/${courseId}/enrollments`, { query }),
     listMine: () => request<EnrollmentDto[]>("/enrollments/mine"),

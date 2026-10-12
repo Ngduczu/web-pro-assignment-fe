@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Plus, UserRound, Shield, X } from "lucide-react";
+import { FileSpreadsheet, Plus, UserRound, Shield, X } from "lucide-react";
+import { UserImportDialog } from "@/components/admin/user-import-dialog";
 import { ApiError } from "@/lib/api/errors";
 import { clientApis } from "@/lib/api/client-apis";
 import type { AccountStatus, Role, UserProfileDto } from "@/types/api";
@@ -14,6 +15,7 @@ import { AreaRefreshButton } from "@/components/ui/area-refresh-button";
 const copy = {
   en: {
     addUser: "Add user",
+    importUsers: "Import Excel",
     directory: "Directory",
     accountsFound: (total: number, search: string) => `${total} account${total === 1 ? "" : "s"} found${search ? ` for "${search}"` : ""}.`,
     noUsers: "No users found.",
@@ -53,6 +55,7 @@ const copy = {
   },
   vi: {
     addUser: "Thêm người dùng",
+    importUsers: "Nhập từ Excel",
     directory: "Danh bạ người dùng",
     accountsFound: (total: number, search: string) => `Tìm thấy ${total} tài khoản${search ? ` cho từ khóa "${search}"` : ""}.`,
     noUsers: "Không tìm thấy người dùng nào.",
@@ -118,6 +121,7 @@ export function UserManagement({
   const [currentTotal, setCurrentTotal] = useState(total);
   const [refreshError, setRefreshError] = useState<string>();
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [statusDialogUser, setStatusDialogUser] = useState<UserProfileDto>();
   const [editing, setEditing] = useState<UserProfileDto>();
   const [busy, setBusy] = useState(false);
@@ -257,6 +261,14 @@ export function UserManagement({
             <AreaRefreshButton label={text.refresh} loadingLabel={text.refreshing} onRefresh={refreshUsers} disabled={busy || open || Boolean(statusDialogUser)} />
             <button
               type="button"
+              onClick={() => setImportOpen(true)}
+              className="inline-flex h-10 items-center gap-2 border border-border px-4 text-sm font-semibold hover:bg-muted"
+            >
+              <FileSpreadsheet className="size-4" />
+              {text.importUsers}
+            </button>
+            <button
+              type="button"
               onClick={startCreate}
               className="inline-flex h-10 items-center gap-2 border border-primary bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
             >
@@ -345,6 +357,14 @@ export function UserManagement({
           /> : null}
         </div>
       )}
+
+      {importOpen ? (
+        <UserImportDialog
+          actorRole={actorRole}
+          onImported={() => { void refreshUsers(); router.refresh(); }}
+          onClose={() => setImportOpen(false)}
+        />
+      ) : null}
 
       {/* Change Status Dialog */}
       {statusDialogUser ? (

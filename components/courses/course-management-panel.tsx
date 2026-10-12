@@ -5,7 +5,7 @@ import { useState } from "react";
 import { RotateCcw, Trash2, Pencil } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { clientApis } from "@/lib/api/client-apis";
-import type { CourseDto, EnrollmentDto } from "@/types/api";
+import type { AddStudentResultStatus, CourseDto, EnrollmentDto } from "@/types/api";
 import { useLanguage } from "@/lib/i18n";
 import { FieldError, RequiredMark, ValidatedForm } from "@/components/ui/form-field-feedback";
 import { PaginatedChildren } from "@/components/ui/paginated-list";
@@ -44,6 +44,24 @@ const copy = {
     deleteError: "Unable to delete course.",
     restoreError: "Unable to restore course.",
     enrollmentError: "Unable to update enrollment.",
+    addTitle: "Add students by email",
+    addDescription: "Enter student emails separated by commas, spaces or new lines. Added students are accepted immediately.",
+    addPlaceholder: "student1@example.com\nstudent2@example.com",
+    addSubmit: "Add students",
+    adding: "Adding...",
+    addEmpty: "Enter at least one email.",
+    addTooMany: "You can add up to 100 emails at a time.",
+    addError: "Unable to add students.",
+    addResultTitle: "Result",
+    addStatus: {
+      Added: "Added",
+      AlreadyAccepted: "Already in this course",
+      InvalidEmail: "Invalid email",
+      NotFound: "No account with this email",
+      NotStudent: "Account is not a student",
+      Inactive: "Account is not active",
+      CourseFull: "Course is full",
+    } satisfies Record<AddStudentResultStatus, string>,
     refresh: "Refresh course and enrollments", refreshing: "Refreshing...", refreshError: "Unable to refresh course data.",
   },
   vi: {
@@ -78,6 +96,24 @@ const copy = {
     deleteError: "Không thể xóa khóa học.",
     restoreError: "Không thể khôi phục khóa học.",
     enrollmentError: "Không thể cập nhật đăng ký.",
+    addTitle: "Thêm học viên bằng email",
+    addDescription: "Nhập email học viên, cách nhau bằng dấu phẩy, khoảng trắng hoặc xuống dòng. Học viên được thêm sẽ vào khóa học ngay.",
+    addPlaceholder: "hocvien1@example.com\nhocvien2@example.com",
+    addSubmit: "Thêm học viên",
+    adding: "Đang thêm...",
+    addEmpty: "Hãy nhập ít nhất một email.",
+    addTooMany: "Chỉ thêm tối đa 100 email mỗi lần.",
+    addError: "Không thể thêm học viên.",
+    addResultTitle: "Kết quả",
+    addStatus: {
+      Added: "Đã thêm",
+      AlreadyAccepted: "Đã ở trong khóa học",
+      InvalidEmail: "Email không hợp lệ",
+      NotFound: "Không có tài khoản với email này",
+      NotStudent: "Tài khoản không phải học viên",
+      Inactive: "Tài khoản chưa hoạt động",
+      CourseFull: "Khóa học đã đủ học viên",
+    } satisfies Record<AddStudentResultStatus, string>,
     refresh: "Làm mới khóa học và đăng ký", refreshing: "Đang làm mới...", refreshError: "Không thể làm mới dữ liệu khóa học.",
   },
 };
@@ -101,6 +137,29 @@ export function CourseManagementPanel({
   const [status, setStatus] = useState(initialCourse.status);
   const [error, setError] = useState<string>();
   const [pending, setPending] = useState(false);
+  const [emailsText, setEmailsText] = useState("");
+  const [addResults, setAddResults] = useState<{ email: string; status: AddStudentResultStatus }[]>();
+  const [addError, setAddError] = useState<string>();
+
+  async function addStudents(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const emails = [...new Set(emailsText.split(/[\s,;]+/).map((value) => value.trim()).filter(Boolean))];
+    setAddError(undefined);
+    setAddResults(undefined);
+    if (!emails.length) return setAddError(text.addEmpty);
+    if (emails.length > 100) return setAddError(text.addTooMany);
+    setPending(true);
+    try {
+      const results = await clientApis.enrollments.addByEmail(course.id, { emails });
+      setAddResults(results);
+      setEmailsText(results.filter((item) => item.status !== "Added" && item.status !== "AlreadyAccepted").map((item) => item.email).join("\n"));
+      await refreshCourseData();
+    } catch (caught) {
+      setAddError(language === "en" && caught instanceof ApiError ? caught.detail : text.addError);
+    } finally {
+      setPending(false);
+    }
+  }
 
   async function refreshCourseData() {
     setError(undefined);
@@ -293,6 +352,40 @@ export function CourseManagementPanel({
           <h2 className="text-lg font-semibold">{text.requests}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{text.requestDescription}</p>
         </div>
+        {!course.deletedAt && course.status === "Open" ? (
+          <form onSubmit={addStudents} className="space-y-3 rounded-xl border border-border bg-muted/20 p-4">
+            <div>
+              <h3 className="font-medium">{text.addTitle}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{text.addDescription}</p>
+            </div>
+            <textarea
+              value={emailsText}
+              onChange={(event) => setEmailsText(event.target.value)}
+              rows={3}
+              aria-label={text.addTitle}
+              placeholder={text.addPlaceholder}
+              className="w-full resize-y rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none transition focus:border-primary focus-visible:ring-2 focus-visible:ring-ring/40"
+            />
+            {addError ? <p role="alert" className="text-sm text-destructive">{addError}</p> : null}
+            {addResults ? (
+              <ul className="max-h-48 divide-y divide-border overflow-y-auto rounded-lg border border-border bg-background text-sm" aria-label={text.addResultTitle}>
+                {addResults.map((item) => (
+                  <li key={item.email} className="flex flex-col gap-1 p-2.5 sm:flex-row sm:justify-between">
+                    <span className="break-all">{item.email}</span>
+                    <span className={item.status === "Added" || item.status === "AlreadyAccepted" ? "text-emerald-700 dark:text-emerald-400" : "text-destructive"}>{text.addStatus[item.status]}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <button
+              type="submit"
+              disabled={pending}
+              className="h-10 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
+            >
+              {pending ? text.adding : text.addSubmit}
+            </button>
+          </form>
+        ) : null}
         {!enrollments.length ? (
           <p className="rounded-xl border border-dashed border-border bg-muted/20 p-5 text-sm text-muted-foreground">{text.empty}</p>
         ) : (

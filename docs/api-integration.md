@@ -140,3 +140,11 @@ Luồng thi: trang kỳ thi → `start` → `/exam-attempts/{examinationId}` (y�
 ## 9. Import câu hỏi từ Excel
 
 `lib/questions-excel.ts` + `components/questions/question-import-dialog.tsx` đọc file `.xlsx` bằng `exceljs` ở trình duyệt (tối đa 500 dòng, có tải file mẫu), chuyển thành request `multiple-choice`/`fill-in-blank` và gọi từng endpoint question-bank (xem `docs/api/question-banks.md` trong repo backend).
+
+## 10. Import tài khoản từ Excel (Admin/System)
+
+`lib/users-excel.ts` + `components/admin/user-import-dialog.tsx` (nút "Nhập từ Excel" ở `/admin`) đọc file `.xlsx` bằng `exceljs` ở trình duyệt (tối đa 200 dòng, file ≤ 2 MB, có tải file mẫu). Cột: `Email`, `FullName`, `Password`, `Phone`, `Role` (mặc định `Student`; `Admin` chỉ khi người thao tác là System). Dòng hợp lệ được gọi lần lượt `POST /api/users` (cùng API với form "Thêm người dùng"); dòng lỗi (validate phía client hoặc backend trả lỗi, ví dụ email trùng) được hiển thị theo từng dòng và không chặn các dòng còn lại.
+
+## 11. Thêm học viên vào khóa học bằng email
+
+Trang quản lý khóa học (`components/courses/course-management-panel.tsx`, mục "Yêu cầu đăng ký") có ô nhập nhiều email (phân tách bằng dấu phẩy, khoảng trắng, xuống dòng; tối đa 100). Gọi `clientApis.enrollments.addByEmail` → `POST /api/courses/{courseId}/enrollments/by-email`, hiển thị kết quả từng email (`Added`, `AlreadyAccepted`, `InvalidEmail`, `NotFound`, `NotStudent`, `Inactive`, `CourseFull`); email lỗi được giữ lại trong ô nhập để sửa. Chỉ hiện khi khóa học `Open` và chưa xóa mềm.
