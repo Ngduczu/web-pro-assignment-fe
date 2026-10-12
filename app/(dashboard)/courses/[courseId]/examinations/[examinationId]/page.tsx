@@ -9,7 +9,7 @@ import { DashboardSkeleton } from "@/components/loading-skeleton";
 import { CourseExaminationHeader } from "@/components/examinations/course-examination-header";
 import { DraftQuestionSetEditor } from "@/components/examinations/draft-question-set-editor";
 import { ExaminationManager, StudentExaminationWorkspace } from "@/components/examinations/examination-detail-workspace";
-import type { CourseDto, ExaminationAttemptDto, ExaminationAttemptResultDto, ExaminationDto, PaginatedResponse, StudentExaminationDto } from "@/types/api";
+import type { CourseDto, ExaminationAttemptDto, ExaminationAttemptResultDto, ExaminationDto, PaginatedResponse, QuestionBankDto, StudentExaminationDto } from "@/types/api";
 
 async function CourseExaminationDetail({ courseId, examinationId }: { courseId: string; examinationId: string }) {
   await connection();
@@ -19,6 +19,7 @@ async function CourseExaminationDetail({ courseId, examinationId }: { courseId: 
   let course: CourseDto;
   let attempt: ExaminationAttemptDto | undefined;
   let results: PaginatedResponse<ExaminationAttemptResultDto> | undefined;
+  let questionBanks: QuestionBankDto[] = [];
 
   try {
     examination = user.role === "Student"
@@ -35,6 +36,11 @@ async function CourseExaminationDetail({ courseId, examinationId }: { courseId: 
       }
     } else {
       results = await serverApis.examinations.listAttempts(examinationId, { page: 1, pageSize: 20 });
+      try {
+        questionBanks = await serverApis.questions.listBanks(course.teacherId);
+      } catch {
+        questionBanks = [];
+      }
     }
   } catch (error) {
     if (error instanceof ApiError && error.isNotFound) notFound();
@@ -65,6 +71,7 @@ async function CourseExaminationDetail({ courseId, examinationId }: { courseId: 
             key={`${examination.id}-${examination.modifiedAt}`}
             initialExam={examination as ExaminationDto}
             initialResults={results ?? { items: [], page: 1, pageSize: 20, totalCount: 0, totalPages: 0 }}
+            questionBanks={questionBanks}
             canAutoSubmit={user.role === "Admin"}
           />}
     </section>
