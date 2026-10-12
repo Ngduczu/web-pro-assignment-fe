@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { BookOpen, ChevronLeft, ChevronRight, ClipboardCheck, Files, LayoutDashboard, MessageCircle, Settings2, Users } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, ClipboardCheck, Files, LayoutDashboard, MessageCircle, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -133,25 +133,6 @@ export function AppSidebar({ role, mobile = false, collapsed = false, onNavigate
           );
         })}
       </nav>
-      <div className={cn("border-t border-sidebar-border/70", isCollapsed ? "p-2" : "px-3 py-3")}>
-        <Link
-          href="/profile"
-          onClick={onNavigate}
-          className={cn(
-            "flex min-h-11 items-center rounded-xl text-sm transition-colors",
-            isCollapsed ? "justify-center px-0" : "gap-3 px-3",
-            pathname === "/profile"
-              ? "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
-              : "text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
-          )}
-          aria-label={isCollapsed ? t("settings") : undefined}
-          title={isCollapsed ? t("settings") : undefined}
-        >
-          <Settings2 className={cn("size-[18px] shrink-0", pathname === "/profile" ? "text-sidebar-primary" : "text-sidebar-foreground/60")} />
-          {!isCollapsed && t("settings")}
-        </Link>
-      </div>
     </aside>
   );
 }
-
