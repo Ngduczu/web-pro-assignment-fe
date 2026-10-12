@@ -1,6 +1,7 @@
+/* eslint-disable @next/next/no-img-element -- authenticated chat images use short-lived blob URLs */
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Download,
   File,
@@ -11,9 +12,11 @@ import {
   Pencil,
   Reply,
   Trash2,
+  X,
 } from "lucide-react";
 import type { ChatAttachmentDto, ChatMessageDto } from "@/types/api";
 import { useLanguage } from "@/lib/i18n";
+import { clientApis } from "@/lib/api/client-apis";
 
 type ChatMessageListProps = {
   messages: ChatMessageDto[];
@@ -95,6 +98,111 @@ function getAttachmentIcon(fileName: string, contentType: string) {
   return File;
 }
 
+function isImageAttachment(attachment: ChatAttachmentDto) {
+  const extension = attachment.fileName.split(".").pop()?.toLowerCase();
+  return attachment.contentType.startsWith("image/") || ["png", "jpg", "jpeg", "webp", "gif"].includes(extension || "");
+}
+
+function ChatImageAttachment({
+  messageId,
+  attachment,
+  isMine,
+  onDownload,
+  onPreview,
+}: {
+  messageId: string;
+  attachment: ChatAttachmentDto;
+  isMine: boolean;
+  onDownload: () => void;
+  onPreview: (src: string) => void;
+}) {
+  const { language } = useLanguage();
+  const isVi = language === "vi";
+  const [imageUrl, setImageUrl] = useState<string>();
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    let objectUrl: string | undefined;
+
+    clientApis.chat.getAttachment(messageId, attachment.id)
+      .then((blob) => {
+        if (!active) return;
+        objectUrl = URL.createObjectURL(blob);
+        setImageUrl(objectUrl);
+      })
+      .catch(() => {
+        if (active) setFailed(true);
+      });
+
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [attachment.id, messageId]);
+
+  if (failed) {
+    return (
+      <button
+        type="button"
+        onClick={onDownload}
+        className={`flex w-full items-center gap-2.5 rounded-lg border p-2 text-left text-xs transition ${isMine ? "border-primary-foreground/25 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20" : "border-border bg-muted/50 text-foreground hover:bg-muted"}`}
+      >
+        <span className={`flex size-8 shrink-0 items-center justify-center rounded-md ${isMine ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary/10 text-primary"}`}>
+          <FileImage className="size-4" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-semibold">{attachment.fileName}</span>
+          <span className="mt-0.5 block text-[10px] opacity-75">{formatFileSize(attachment.fileSize)}</span>
+        </span>
+        <Download className="size-4 shrink-0 opacity-75" />
+      </button>
+    );
+  }
+
+  if (!imageUrl) {
+    return (
+      <div
+        role="status"
+        aria-label={isVi ? "Đang tải ảnh" : "Loading image"}
+        className={`flex h-44 w-[min(16rem,72vw)] animate-pulse items-center justify-center rounded-xl ${isMine ? "bg-primary-foreground/15" : "bg-muted"}`}
+      >
+        <FileImage className="size-7 opacity-50" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="group/image relative max-w-[min(20rem,72vw)] overflow-hidden rounded-xl">
+      <button
+        type="button"
+        onClick={() => onPreview(imageUrl)}
+        className="block max-w-full overflow-hidden rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label={isVi ? `Xem ảnh ${attachment.fileName}` : `View image ${attachment.fileName}`}
+      >
+        <img
+          src={imageUrl}
+          alt={attachment.fileName}
+          onError={() => setFailed(true)}
+          className="max-h-80 w-auto max-w-full object-contain transition duration-200 group-hover/image:brightness-95"
+        />
+      </button>
+      <button
+        type="button"
+        onClick={onDownload}
+        className="absolute right-2 top-2 rounded-full bg-black/55 p-2 text-white opacity-100 shadow-sm transition hover:bg-black/70 sm:opacity-0 sm:group-hover/image:opacity-100 sm:focus:opacity-100"
+        aria-label={isVi ? `Tải xuống ${attachment.fileName}` : `Download ${attachment.fileName}`}
+        title={isVi ? "Tải xuống" : "Download"}
+      >
+        <Download className="size-4" />
+      </button>
+      <span className="pointer-events-none absolute bottom-0 left-0 right-0 truncate bg-gradient-to-t from-black/65 to-transparent px-3 pb-2 pt-6 text-left text-[11px] text-white opacity-0 transition sm:group-hover/image:opacity-100">
+        {attachment.fileName} · {formatFileSize(attachment.fileSize)}
+      </span>
+    </div>
+  );
+}
+
 export function ChatMessageList({
   messages,
   currentUserId,
@@ -106,13 +214,24 @@ export function ChatMessageList({
 }: ChatMessageListProps) {
   const { language } = useLanguage();
   const isVi = language === "vi";
+  const [preview, setPreview] = useState<{ src: string; fileName: string; messageId: string; attachmentId: string }>();
   // Messages are received newest first from API, so reverse for chronological display.
   const ordered = useMemo(() => [...messages].reverse(), [messages]);
   const byId = useMemo(() => new Map(messages.map((message) => [message.id, message])), [messages]);
 
+  useEffect(() => {
+    if (!preview) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPreview(undefined);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [preview]);
+
   return (
-    <div className="chat-scrollbar flex min-h-0 flex-1 flex-col-reverse overflow-y-auto p-4 sm:p-6">
-      <div>
+    <>
+      <div className="chat-scrollbar flex min-h-0 flex-1 flex-col-reverse overflow-y-auto p-4 sm:p-6">
+        <div>
         {ordered.length ? (
           ordered.map((message, index) => {
             const isMine = message.senderId === currentUserId;
@@ -218,6 +337,23 @@ export function ChatMessageList({
                         {message.attachments.length ? (
                           <div className={`${message.content ? "mt-2" : ""} space-y-1.5`}>
                             {message.attachments.map((attachment: ChatAttachmentDto) => {
+                              if (isImageAttachment(attachment)) {
+                                return (
+                                  <ChatImageAttachment
+                                    key={attachment.id}
+                                    messageId={message.id}
+                                    attachment={attachment}
+                                    isMine={isMine}
+                                    onDownload={() => onDownload(message.id, attachment.id, attachment.fileName)}
+                                    onPreview={(src) => setPreview({
+                                      src,
+                                      fileName: attachment.fileName,
+                                      messageId: message.id,
+                                      attachmentId: attachment.id,
+                                    })}
+                                  />
+                                );
+                              }
                               const IconComponent = getAttachmentIcon(attachment.fileName, attachment.contentType);
                               return (
                                 <button
@@ -281,7 +417,33 @@ export function ChatMessageList({
             </p>
           </div>
         )}
+        </div>
       </div>
-    </div>
+      {preview ? (
+        <div role="dialog" aria-modal="true" aria-label={preview.fileName} className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-3 sm:p-8">
+          <button type="button" className="absolute inset-0 cursor-zoom-out" onClick={() => setPreview(undefined)} aria-label={isVi ? "Đóng ảnh" : "Close image"} />
+          <img src={preview.src} alt={preview.fileName} className="relative max-h-full max-w-full object-contain" />
+          <div className="absolute right-3 top-3 flex items-center gap-2 sm:right-6 sm:top-6">
+            <button
+              type="button"
+              onClick={() => onDownload(preview.messageId, preview.attachmentId, preview.fileName)}
+              className="inline-flex min-h-10 items-center gap-2 rounded-full bg-black/60 px-3.5 text-sm font-medium text-white transition hover:bg-black/80"
+              aria-label={isVi ? `Tải xuống ${preview.fileName}` : `Download ${preview.fileName}`}
+            >
+              <Download className="size-4" />
+              <span className="hidden sm:inline">{isVi ? "Tải xuống" : "Download"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPreview(undefined)}
+              className="rounded-full bg-black/60 p-2.5 text-white transition hover:bg-black/80"
+              aria-label={isVi ? "Đóng ảnh" : "Close image"}
+            >
+              <X className="size-5" />
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
