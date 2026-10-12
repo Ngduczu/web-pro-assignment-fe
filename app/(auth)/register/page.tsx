@@ -20,9 +20,19 @@ import { RequiredMark } from "@/components/ui/form-field-feedback";
 type RegisterValues = z.infer<typeof registerSchema>;
 
 const copy = {
-  en: { sent: "Verification code sent. It expires at", failure: "Unable to create your account." },
-  vi: { sent: "Mã xác thực đã được gửi. Mã hết hạn lúc", failure: "Không thể tạo tài khoản của bạn." },
+  en: {
+    sent: "Verification code sent. It expires at",
+    emailExists: "This email is already registered. Please sign in or use another email.",
+    failure: "Unable to create your account.",
+  },
+  vi: {
+    sent: "Mã xác thực đã được gửi. Mã hết hạn lúc",
+    emailExists: "Email này đã được đăng ký. Vui lòng đăng nhập hoặc sử dụng email khác.",
+    failure: "Không thể tạo tài khoản của bạn.",
+  },
 };
+
+const EMAIL_EXISTS_DETAIL = "An account with this email already exists.";
 
 export default function RegisterPage() {
   const [serverError, setServerError] = useState<string>();
@@ -43,6 +53,11 @@ export default function RegisterPage() {
       setSuccess(`${text.sent} ${new Date(result.verificationCodeExpiresAt).toLocaleTimeString(language === "vi" ? "vi-VN" : "en", { hour: "2-digit", minute: "2-digit" })}.`);
       router.push(`/verify-email?email=${encodeURIComponent(result.email)}`);
     } catch (error) {
+      if (error instanceof ApiError && error.status === 409 && error.detail === EMAIL_EXISTS_DETAIL) {
+        setServerError(text.emailExists);
+        return;
+      }
+
       setServerError(language === "en" && error instanceof ApiError ? error.detail : text.failure);
     }
   }
