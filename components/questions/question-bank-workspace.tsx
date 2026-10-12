@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { CirclePlus, FileSpreadsheet, Pencil, Search, Share2, Trash2, UserRound, X } from "lucide-react";
 import { clientApis } from "@/lib/api/client-apis";
 import { ApiError } from "@/lib/api/errors";
-import type { ChatUserSearchDto, QuestionBankDto, QuestionDifficulty, QuestionDto, QuestionType, UserProfileDto } from "@/types/api";
+import type { ChatUserSearchDto, QuestionBankDto, QuestionDifficulty, QuestionDto, QuestionType } from "@/types/api";
 import { QuestionBankSidebar } from "@/components/questions/question-bank-sidebar";
 import { QuestionCard } from "@/components/questions/question-card";
 import { QuestionImportDialog } from "@/components/questions/question-import-dialog";
@@ -48,11 +48,12 @@ const copy = {
     clearFilters: "Clear filters",
     questionCount: (count: number) => `${count} questions`,
     selectOrCreate: "Select or create a question bank.",
+    noBanksAvailable: "No question banks are available.",
+    owner: "Owner",
+    readOnly: "View only",
     newBankTitle: "New question bank",
     editBankTitle: "Edit question bank",
     bankDesc: "Organize reusable questions for examinations.",
-    teacher: "Teacher in charge",
-    selectTeacher: "Select teacher",
     bankName: "Bank name",
     bankDescription: "Description",
     saving: "Saving...",
@@ -109,11 +110,12 @@ const copy = {
     clearFilters: "Xóa bộ lọc",
     questionCount: (count: number) => `${count} câu hỏi`,
     selectOrCreate: "Chọn hoặc tạo mới một ngân hàng câu hỏi.",
+    noBanksAvailable: "Chưa có ngân hàng câu hỏi nào.",
+    owner: "Chủ sở hữu",
+    readOnly: "Chỉ xem",
     newBankTitle: "Ngân hàng câu hỏi mới",
     editBankTitle: "Chỉnh sửa ngân hàng câu hỏi",
     bankDesc: "Tổ chức và quản lý câu hỏi tái sử dụng cho các kỳ thi.",
-    teacher: "Giảng viên phụ trách",
-    selectTeacher: "Chọn giảng viên",
     bankName: "Tên ngân hàng",
     bankDescription: "Mô tả",
     saving: "Đang lưu...",
@@ -148,12 +150,10 @@ export function QuestionBankWorkspace({
   initialItems,
   userId,
   role,
-  teachers,
 }: {
   initialItems: BankWithQuestions[];
   userId: string;
-  role: "Teacher" | "Admin";
-  teachers: UserProfileDto[];
+  role: "Teacher" | "Admin" | "System";
 }) {
   const { language } = useLanguage();
   const text = copy[language];
@@ -169,7 +169,6 @@ export function QuestionBankWorkspace({
   const [notice, setNotice] = useState<string>();
   const [refreshError, setRefreshError] = useState<string>();
   const [refreshing, setRefreshing] = useState(false);
-  const [currentTeachers, setTeachers] = useState(teachers);
   const [shareModal, setShareModal] = useState(false);
   const [shareEmail, setShareEmail] = useState("");
   const [shareUser, setShareUser] = useState<ChatUserSearchDto>();
@@ -187,6 +186,7 @@ export function QuestionBankWorkspace({
   const [correctIndex, setCorrectIndex] = useState(0);
   const [answers, setAnswers] = useState([""]);
   const [answerOrders, setAnswerOrders] = useState([1]);
+  const readOnly = role === "Admin" || role === "System";
   const selected = useMemo(() => items.find((item) => item.bank.id === selectedId), [items, selectedId]);
   const filteredQuestions = useMemo(
     () => selected?.questions.filter((question) =>
@@ -203,10 +203,7 @@ export function QuestionBankWorkspace({
     try {
       const banks = await clientApis.questions.listBanks(role === "Teacher" ? userId : undefined);
       const latestItems = await Promise.all(banks.map(async (bank) => ({ bank, questions: await clientApis.questions.listQuestions(bank.id) })));
-      let latestTeachers = currentTeachers;
-      if (role === "Admin") latestTeachers = (await clientApis.users.list({ pageSize: 20 })).items.filter((item) => item.role === "Teacher" && item.status === "Active");
       setItems(latestItems);
-      setTeachers(latestTeachers);
       setSelectedId((current) => latestItems.some((item) => item.bank.id === current) ? current : latestItems[0]?.bank.id ?? "");
     } catch (caught) {
       setRefreshError(language === "en" && caught instanceof ApiError ? caught.detail : text.refreshError);
@@ -408,7 +405,8 @@ export function QuestionBankWorkspace({
           items={items}
           selectedId={selectedId}
           onSelect={setSelectedId}
-          onCreate={() => openBank()}
+          onCreate={readOnly ? undefined : () => openBank()}
+          showOwner={readOnly}
           refreshAction={<AreaRefreshButton className="w-full" label={text.refresh} loadingLabel={text.refreshing} onRefresh={refreshBanks} disabled={refreshing || busy || bankModal || questionModal || importModal || shareModal} />}
         />
         <main className="min-w-0">
@@ -416,12 +414,25 @@ export function QuestionBankWorkspace({
             <div className="space-y-6">
               <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <h2 className="text-2xl font-semibold">{selected.bank.name}</h2>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-2xl font-semibold">{selected.bank.name}</h2>
+                    {readOnly ? (
+                      <span className="rounded-full border border-primary/25 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary">
+                        {text.readOnly}
+                      </span>
+                    ) : null}
+                  </div>
+                  {readOnly ? (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      <span className="font-medium text-foreground">{text.owner}:</span>{" "}
+                      {selected.bank.ownerFullName} · {selected.bank.ownerEmail}
+                    </p>
+                  ) : null}
                   <p className="mt-1 text-sm text-muted-foreground">
                     {selected.bank.description || (language === "vi" ? "Chưa có mô tả." : "No description provided.")}
                   </p>
                 </div>
-                <div className="flex shrink-0 flex-wrap gap-2">
+                {!readOnly ? <div className="flex shrink-0 flex-wrap gap-2">
                   <button
                     onClick={() => openBank(selected.bank)}
                     className="border border-border p-2 hover:bg-muted"
@@ -467,7 +478,7 @@ export function QuestionBankWorkspace({
                   >
                     <CirclePlus className="size-4" /> {text.addQuestion}
                   </button>
-                </div>
+                </div> : null}
               </div>
               {!selected.questions.length ? (
                 <EmptyState mascotSrc="/assets/owlie/think.webp">{text.noQuestions}</EmptyState>
@@ -527,8 +538,8 @@ export function QuestionBankWorkspace({
                           key={question.id}
                           question={question}
                           index={index}
-                          onEdit={() => openQuestion(question)}
-                          onDelete={() => removeQuestion(question)}
+                          onEdit={readOnly ? undefined : () => openQuestion(question)}
+                          onDelete={readOnly ? undefined : () => removeQuestion(question)}
                         />
                       ))}
                     </PaginatedChildren>
@@ -538,14 +549,14 @@ export function QuestionBankWorkspace({
             </div>
           ) : (
             <div className="border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-              {text.selectOrCreate}
+              {readOnly ? text.noBanksAvailable : text.selectOrCreate}
             </div>
           )}
         </main>
       </div>
 
       {/* Share Modal */}
-      {shareModal ? (
+      {!readOnly && shareModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <button
             className="absolute inset-0 bg-foreground/30 backdrop-blur-sm"
@@ -620,7 +631,7 @@ export function QuestionBankWorkspace({
       ) : null}
 
       {/* Bank Modal */}
-      {bankModal ? (
+      {!readOnly && bankModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <button
             className="absolute inset-0 bg-foreground/30 backdrop-blur-sm"
@@ -642,26 +653,6 @@ export function QuestionBankWorkspace({
                 <X className="size-5" />
               </button>
             </div>
-            {role === "Admin" && !editingBank ? (
-              <label className="grid gap-2 text-sm font-medium">
-                <span>{text.teacher}<RequiredMark /></span>
-                <select
-                  required
-                  data-field-error="bank-teacher"
-                  value={teacherId}
-                  onChange={(event) => setTeacherId(event.target.value)}
-                  className={inputClass}
-                >
-                  <option value="">{text.selectTeacher}</option>
-                  {currentTeachers.map((teacher) => (
-                    <option key={teacher.id} value={teacher.id}>
-                      {teacher.fullName}
-                    </option>
-                  ))}
-                </select>
-                <FieldError field="bank-teacher" />
-              </label>
-            ) : null}
             <label className="grid gap-2 text-sm font-medium">
               <span>{text.bankName}<RequiredMark /></span>
               <input
@@ -694,7 +685,7 @@ export function QuestionBankWorkspace({
         </div>
       ) : null}
 
-      {importModal && selected ? (
+      {!readOnly && importModal && selected ? (
         <QuestionImportDialog
           bankId={selected.bank.id}
           bankName={selected.bank.name}
@@ -710,7 +701,7 @@ export function QuestionBankWorkspace({
       ) : null}
 
       {/* Question Modal */}
-      {questionModal && selected ? (
+      {!readOnly && questionModal && selected ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
           <button
             className="absolute inset-0 bg-foreground/30 backdrop-blur-sm"

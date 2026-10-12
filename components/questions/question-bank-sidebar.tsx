@@ -6,14 +6,32 @@ import { useLanguage } from "@/lib/i18n";
 import type { QuestionBankDto, QuestionDto } from "@/types/api";
 import { PaginatedChildren } from "@/components/ui/paginated-list";
 
-export function QuestionBankSidebar({ items, selectedId, onSelect, onCreate, refreshAction }: { items: { bank: QuestionBankDto; questions: QuestionDto[] }[]; selectedId: string; onSelect: (id: string) => void; onCreate: () => void; refreshAction?: ReactNode }) {
+export function QuestionBankSidebar({
+  items,
+  selectedId,
+  onSelect,
+  onCreate,
+  refreshAction,
+  showOwner = false,
+}: {
+  items: { bank: QuestionBankDto; questions: QuestionDto[] }[];
+  selectedId: string;
+  onSelect: (id: string) => void;
+  onCreate?: () => void;
+  refreshAction?: ReactNode;
+  showOwner?: boolean;
+}) {
   const { language } = useLanguage();
   const isVi = language === "vi";
   const [query, setQuery] = useState("");
   const normalized = query.trim().toLowerCase();
   const filtered = useMemo(
-    () => (normalized ? items.filter(({ bank }) => bank.name.toLowerCase().includes(normalized)) : items),
-    [items, normalized],
+    () => (normalized
+      ? items.filter(({ bank }) => showOwner
+        ? bank.ownerFullName.toLowerCase().includes(normalized) || bank.ownerEmail.toLowerCase().includes(normalized)
+        : bank.name.toLowerCase().includes(normalized))
+      : items),
+    [items, normalized, showOwner],
   );
 
   return (
@@ -23,9 +41,11 @@ export function QuestionBankSidebar({ items, selectedId, onSelect, onCreate, ref
           <h2 className="font-semibold">{isVi ? "Ngân hàng câu hỏi" : "Banks"}</h2>
           <p className="text-xs text-muted-foreground">{filtered.length} {isVi ? "ngân hàng" : "total"}</p>
         </div>
-        <button onClick={onCreate} className="flex size-9 items-center justify-center bg-primary text-primary-foreground" aria-label={isVi ? "Tạo ngân hàng câu hỏi" : "Create bank"}>
-          <CirclePlus className="size-4" />
-        </button>
+        {onCreate ? (
+          <button onClick={onCreate} className="flex size-9 items-center justify-center bg-primary text-primary-foreground" aria-label={isVi ? "Tạo ngân hàng câu hỏi" : "Create bank"}>
+            <CirclePlus className="size-4" />
+          </button>
+        ) : null}
       </div>
       {refreshAction ? <div className="border-b border-border p-2">{refreshAction}</div> : null}
       <div className="border-b border-border p-2">
@@ -35,8 +55,12 @@ export function QuestionBankSidebar({ items, selectedId, onSelect, onCreate, ref
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder={isVi ? "Tìm tên ngân hàng..." : "Search banks..."}
-            aria-label={isVi ? "Tìm tên ngân hàng" : "Search banks"}
+            placeholder={showOwner
+              ? isVi ? "Tên hoặc email chủ sở hữu..." : "Owner name or email..."
+              : isVi ? "Tìm tên ngân hàng..." : "Search banks..."}
+            aria-label={showOwner
+              ? isVi ? "Lọc theo tên hoặc email chủ sở hữu" : "Filter by owner name or email"
+              : isVi ? "Tìm tên ngân hàng" : "Search banks"}
             className="h-9 w-full rounded-xl border border-input bg-background pl-9 pr-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
@@ -47,6 +71,11 @@ export function QuestionBankSidebar({ items, selectedId, onSelect, onCreate, ref
             {filtered.map(({ bank, questions }) => (
               <button key={bank.id} onClick={() => onSelect(bank.id)} className={`w-full px-3 py-3 text-left text-sm ${selectedId === bank.id ? "bg-primary/10 text-primary" : "hover:bg-muted"}`}>
                 <span className="block truncate font-medium">{bank.name}</span>
+                {showOwner ? (
+                  <span className="mt-1 block truncate text-xs text-muted-foreground" title={`${bank.ownerFullName} · ${bank.ownerEmail}`}>
+                    {bank.ownerFullName} · {bank.ownerEmail}
+                  </span>
+                ) : null}
                 <span className="mt-1 block text-xs text-muted-foreground">{questions.length} {isVi ? "câu hỏi" : "questions"}</span>
               </button>
             ))}

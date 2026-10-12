@@ -4,10 +4,8 @@ import { requireRole } from "@/lib/auth/session";
 import { serverApis } from "@/lib/api/server-apis";
 import { QuestionBankWorkspace } from "@/components/questions/question-bank-workspace";
 import { DashboardSkeleton } from "@/components/loading-skeleton";
-import type { UserProfileDto } from "@/types/api";
 import { getServerLanguage, translate } from "@/lib/i18n-server";
 import { AlertBanner, PageHeader } from "@/components/ui/page-chrome";
-import { isAdministratorRole } from "@/lib/auth/roles";
 
 async function QuestionBanksContent() {
   await connection();
@@ -16,18 +14,10 @@ async function QuestionBanksContent() {
   const text = (value: string) => translate(language, value);
 
   let banks;
-  let teachers: UserProfileDto[];
   let items;
 
   try {
-    [banks, teachers] = await Promise.all([
-      serverApis.questions.listBanks(user.role === "Teacher" ? user.id : undefined),
-      isAdministratorRole(user.role)
-        ? serverApis.users.list({ pageSize: 20 }).then((result) =>
-            result.items.filter((item) => item.role === "Teacher" && item.status === "Active"),
-          )
-        : Promise.resolve([] as UserProfileDto[]),
-    ]);
+    banks = await serverApis.questions.listBanks(user.role === "Teacher" ? user.id : undefined);
     items = await Promise.all(
       banks.map(async (bank) => ({ bank, questions: await serverApis.questions.listQuestions(bank.id) })),
     );
@@ -35,7 +25,7 @@ async function QuestionBanksContent() {
     return <AlertBanner>{text("Question banks could not be loaded.")}</AlertBanner>;
   }
 
-  const role = user.role === "Teacher" ? "Teacher" : "Admin";
+  const role = user.role === "Teacher" ? "Teacher" : user.role === "System" ? "System" : "Admin";
 
   return (
     <section className="space-y-8">
@@ -44,7 +34,7 @@ async function QuestionBanksContent() {
         description={text("Build reusable multiple-choice and fill-in-the-blank questions for examinations.")}
         mascotSrc="/assets/owlie/code.webp"
       />
-      <QuestionBankWorkspace initialItems={items} userId={user.id} role={role} teachers={teachers} />
+      <QuestionBankWorkspace initialItems={items} userId={user.id} role={role} />
     </section>
   );
 }

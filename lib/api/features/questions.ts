@@ -7,7 +7,7 @@ export function createQuestionsApi(request: ApiTransport) {
     updateBank: (bankId: string, body: UpdateQuestionBankRequest) => request<QuestionBankDto>(`/question-banks/${bankId}`, { method: "PUT", body }),
     removeBank: (bankId: string) => request<void>(`/question-banks/${bankId}`, { method: "DELETE" }),
     shareBank: (bankId: string, body: ShareQuestionBankRequest) => request<QuestionBankDto>(`/question-banks/${bankId}/share`, { method: "POST", body }),
-    listBanks: (teacherId?: string) => request<QuestionBankDto[]>("/question-banks", { query: { teacherId } }),
+    listBanks: (teacherId?: string, ownerSearch?: string) => request<QuestionBankDto[]>("/question-banks", { query: { teacherId, ownerSearch } }),
     createMultipleChoice: (bankId: string, body: CreateMultipleChoiceQuestionRequest) => request<QuestionDto>(`/question-banks/${bankId}/multiple-choice`, { method: "POST", body }),
     createFillInBlank: (bankId: string, body: CreateFillInBlankQuestionRequest) => request<QuestionDto>(`/question-banks/${bankId}/fill-in-blank`, { method: "POST", body }),
     listQuestions: (bankId: string) => request<QuestionDto[]>(`/question-banks/${bankId}/questions`),
