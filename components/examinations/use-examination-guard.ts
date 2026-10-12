@@ -13,6 +13,7 @@ export function useExaminationGuard({ attemptId, active, security, onAttemptChan
     if (!active || !attemptId) return;
     async function recordViolation(type: ExaminationViolationType, durationSeconds?: number) { try { onAttemptChange(await clientApis.examinations.recordViolation(attemptId!, type, durationSeconds)); } catch { onViolationError?.(); } }
     async function violation(type: ExaminationViolationType, durationSeconds?: number) { onViolation?.(type); await recordViolation(type, durationSeconds); }
+    let escapeViolationAt = 0;
     const visibility = () => { if (document.hidden && security.detectTabChange) void violation("TabChanged"); };
     const blur = () => { if (!document.hidden && security.detectTabChange) void violation("WindowBlurred"); };
     const copy = (event: ClipboardEvent) => { if (security.blockCopyPaste) { event.preventDefault(); void violation("CopyAttempt"); } };
@@ -28,7 +29,10 @@ export function useExaminationGuard({ attemptId, active, security, onAttemptChan
     };
     const fullscreen = () => {
       if (!security.requireFullscreen) return;
-      if (!document.fullscreenElement) { onViolation?.("ExitFullscreen"); fullscreenExitAt.current = Date.now(); fullscreenTimer.current = window.setTimeout(() => { fullscreenTimer.current = undefined; fullscreenExitAt.current = undefined; void recordViolation("ExitFullscreen", security.fullscreenGraceSeconds + 1); }, (security.fullscreenGraceSeconds + 1) * 1000); }
+      if (!document.fullscreenElement) {
+        if (Date.now() - escapeViolationAt < 1000) { escapeViolationAt = 0; return; }
+        onViolation?.("ExitFullscreen"); fullscreenExitAt.current = Date.now(); fullscreenTimer.current = window.setTimeout(() => { fullscreenTimer.current = undefined; fullscreenExitAt.current = undefined; void recordViolation("ExitFullscreen", security.fullscreenGraceSeconds + 1); }, (security.fullscreenGraceSeconds + 1) * 1000);
+      }
       else if (fullscreenExitAt.current) { if (fullscreenTimer.current) window.clearTimeout(fullscreenTimer.current); const duration = Math.ceil((Date.now() - fullscreenExitAt.current) / 1000); fullscreenExitAt.current = undefined; if (duration > security.fullscreenGraceSeconds) void recordViolation("ExitFullscreen", duration); }
     };
     const keyboard = (navigator as Navigator & { keyboard?: { lock?: (codes: string[]) => Promise<void>; unlock?: () => void } }).keyboard;
@@ -41,6 +45,11 @@ export function useExaminationGuard({ attemptId, active, security, onAttemptChan
       const clipboard = mod && !event.shiftKey && ["c", "x", "v", "p", "s"].includes(key);
       if (key !== "escape" && key !== "printscreen" && !devTools && !clipboard) return;
       event.preventDefault(); event.stopPropagation();
+      if (key === "escape" && !event.repeat && security.requireFullscreen && document.fullscreenElement) {
+        escapeViolationAt = Date.now();
+        void violation("ExitFullscreen", security.fullscreenGraceSeconds + 1);
+        return;
+      }
       if (key === "printscreen") { void navigator.clipboard?.writeText("").catch(() => undefined); return; }
       if (devTools && security.detectDevTools) void violation("DevToolsSuspected");
       else if (clipboard && security.blockCopyPaste && key !== "p" && key !== "s") void violation(key === "v" ? "PasteAttempt" : "CopyAttempt");
