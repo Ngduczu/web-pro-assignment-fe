@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { useLanguage } from "@/lib/i18n";
 import { localizeAuthMessage } from "@/lib/auth/localized-message";
 import { RequiredMark } from "@/components/ui/form-field-feedback";
+import { MailCheck } from "lucide-react";
 
 type RegisterValues = z.infer<typeof registerSchema>;
 
@@ -73,6 +74,7 @@ export default function RegisterPage() {
         <div className="space-y-2"><label htmlFor="password" className="text-sm font-medium">{t("password")}<RequiredMark /></label><PasswordInput id="password" {...passwordField} value={password} autoComplete="new-password" />{errors.password ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.password.message)}</p> : null}</div>
         <div className="space-y-2"><label htmlFor="passwordConfirm" className="text-sm font-medium">{t("confirmPassword")}<RequiredMark /></label><PasswordInput id="passwordConfirm" {...confirmField} value={passwordConfirm} placeholder={t("confirmPassword")} autoComplete="new-password" />{errors.passwordConfirm ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.passwordConfirm.message)}</p> : null}</div>
         <AuthSubmit loading={isSubmitting}>{t("createAccount")}</AuthSubmit>
+        <Link href="/verify-email" className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"><MailCheck className="size-4" aria-hidden="true" />{t("activateAccount")}</Link>
       </form>
     </AuthShell>
   );

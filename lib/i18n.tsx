@@ -66,6 +66,7 @@ type TranslationKey =
   | "pageNotFound"
   | "returnHome"
   | "verifyEmail"
+  | "activateAccount"
   | "continue"
   | "resetPassword"
   | "pleaseWait"
@@ -157,6 +158,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     pageNotFound: "Page not found",
     returnHome: "Return home",
     verifyEmail: "Verify email",
+    activateAccount: "Activate account",
     continue: "Continue",
     resetPassword: "Reset password",
     pleaseWait: "Please wait...",
@@ -247,6 +249,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     pageNotFound: "Không tìm thấy trang",
     returnHome: "Về trang chủ",
     verifyEmail: "Xác thực email",
+    activateAccount: "Kích hoạt tài khoản",
     continue: "Tiếp tục",
     resetPassword: "Đặt lại mật khẩu",
     pleaseWait: "Vui lòng chờ...",

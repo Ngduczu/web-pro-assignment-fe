@@ -16,6 +16,7 @@ import { useState } from "react";
 import { useWatch } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { FcGoogle } from "react-icons/fc";
+import { MailCheck } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 import { localizeAuthMessage } from "@/lib/auth/localized-message";
 import { RequiredMark } from "@/components/ui/form-field-feedback";
@@ -66,6 +67,7 @@ export default function LoginPage() {
         <div className="space-y-2"><label htmlFor="email" className="text-sm font-medium">{t("email")}<RequiredMark /></label><input id="email" type="email" autoComplete="email" {...register("email")} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring" />{errors.email ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.email.message)}</p> : null}</div>
         <div className="space-y-2"><div className="flex items-center justify-between"><label htmlFor="password" className="text-sm font-medium">{t("password")}<RequiredMark /></label><Link href="/forgot-password" className="text-xs font-medium text-primary hover:underline">{t("forgotPassword")}</Link></div><PasswordInput id="password" {...passwordField} value={password} autoComplete="current-password" />{errors.password ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.password.message)}</p> : null}</div>
         <AuthSubmit loading={isSubmitting}>{t("signIn")}</AuthSubmit>
+        <Link href="/verify-email" className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"><MailCheck className="size-4" aria-hidden="true" />{t("activateAccount")}</Link>
         <div className="relative flex items-center"><div className="h-px flex-1 bg-border" /><span className="px-3 text-xs text-muted-foreground">{text.separator}</span><div className="h-px flex-1 bg-border" /></div>
         <button type="button" onClick={startGoogleLogin} disabled={oauthLoading || isSubmitting} className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-input bg-background text-sm font-medium transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"><FcGoogle className="size-5" aria-hidden="true" />{oauthLoading ? t("connecting") : t("continueWithGoogle")}</button>
       </form>
