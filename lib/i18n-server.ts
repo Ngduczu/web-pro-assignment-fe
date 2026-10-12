@@ -166,6 +166,7 @@ const messages: Record<string, [string, string]> = {
   "Course teacher": ["Course teacher", "Giảng viên phụ trách"],
   "Course status": ["Course status", "Trạng thái khóa học"],
   "Course name": ["Course name", "Tên khóa học"],
+  "Users": ["Users", "Người dùng"],
   "User": ["User", "Người dùng"],
 };
 
