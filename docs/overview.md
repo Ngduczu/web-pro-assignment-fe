@@ -1,6 +1,8 @@
 # Frontend – Tổng quan
 
-Ứng dụng **SFIT Study**: giao diện web cho LMS, chạy trên Next.js. Frontend không có logic nghiệp vụ riêng; toàn bộ dữ liệu và quyền do backend quyết định (xem `docs/overview.md` trong repo backend).
+Đối chiếu mã nguồn ngày **2026-10-13**. Mô tả implementation trong repository, không phải xác nhận môi trường production.
+
+Ứng dụng **SFIT Study**: giao diện web cho LMS, chạy trên Next.js. Frontend có validation/form, tổng hợp dữ liệu, giám sát trình duyệt và logic hiển thị; backend quyết định dữ liệu bền vững, quyền và quy tắc nghiệp vụ (xem [backend overview](../../backend/docs/overview.md)).
 
 ## 1. Công nghệ
 
@@ -14,16 +16,16 @@
 | Realtime | `@microsoft/signalr` |
 | Phiên đăng nhập | Cookie HTTP-only, đọc JWT bằng `jose` |
 | Theme | `next-themes` + script chống nháy (sáng/tối) |
-| Excel | `exceljs` (import câu hỏi) |
+| Excel | `exceljs` (import câu hỏi/tài khoản, xuất mẫu, xuất kết quả thi) |
 | Lint | ESLint 9 + `eslint-config-next` |
 
-> `lms-frontend/AGENTS.md` nhắc đây là bản Next.js có thay đổi lớn: khi viết code mới, đọc tài liệu trong `node_modules/next/dist/docs/`.
+> [AGENTS.md](../AGENTS.md) yêu cầu đọc tài liệu Next được cài trong `node_modules/next/dist/docs/` khi viết code framework. Phiên bản dự án đang khai báo: Next 16.4.0, React 19.3.0; tài liệu không yêu cầu nâng package.
 
 ## 2. Chạy local
 
 ```bash
-cd lms-frontend
-npm install
+cd frontend
+npm ci
 
 # .env.local
 BACKEND_API_URL=http://localhost:5258/api
@@ -40,13 +42,14 @@ npm run lint
 | --- | --- | --- |
 | `BACKEND_API_URL` | Base URL REST của backend (server-side) | `http://localhost:5258/api` |
 | `BACKEND_HUB_URL` | URL hub SignalR trả cho trình duyệt cùng realtime token | Suy ra: bỏ đuôi `/api`, thêm `/hubs/chat` |
+| `NEXT_PUBLIC_SITE_URL` | Metadata, canonical, OpenGraph, JSON-LD, robots/sitemap; không phải API URL | `https://sfit-study.ducvu.site` |
 
 Backend phải chạy trước và khai báo `Cors:AllowedOrigins` chứa `http://localhost:3000` để SignalR hoạt động (xem `docs/setup.md` trong repo backend). Google OAuth cần `OAUTH__GOOGLE__CLIENTCALLBACKURI=http://localhost:3000/oauth/callback`.
 
 ## 3. Cấu trúc thư mục
 
 ```text
-lms-frontend
+frontend
 ├── app/
 │   ├── (auth)/            Trang công khai: login, register, verify-email, forgot/reset-password, oauth/callback
 │   ├── (dashboard)/       Trang sau đăng nhập (layout gọi requireAuth, có sidebar/header)
@@ -77,14 +80,16 @@ Bảo vệ bằng `requireAuth()` (chưa đăng nhập → `/login`) và `requir
 | `/courses/[courseId]/exercises/[exerciseId]` | Đăng nhập | Bài tập, nộp bài, chấm điểm |
 | `/courses/[courseId]/examinations/[examinationId]` | Đăng nhập | Chi tiết kỳ thi, kết quả |
 | `/exams` | Đăng nhập | Tổng hợp kỳ thi qua các khóa học |
-| `/question-banks` | Teacher, Admin | Ngân hàng câu hỏi, import Excel |
+| `/question-banks` | Teacher, Admin, System | Teacher quản lý/import/chia sẻ bank của mình; Admin/System chỉ đọc, lọc chủ bank |
 | `/chat` | Đăng nhập | Tin nhắn; query `?courseId=&roomId=` |
-| `/admin`, `/admin/users` | Admin | Quản lý người dùng |
+| `/admin` | Admin, System | Quản lý người dùng, import Excel |
+| `/admin/users` | Qua trang đích `/admin` | Chuyển hướng về `/admin` |
 | `/profile` | Đăng nhập | Hồ sơ, đổi mật khẩu, giao diện; `/settings` chuyển hướng về đây |
 | `/exam-attempts/[examinationId]` | Student | Làm bài thi (toàn màn hình, có giám sát) |
 | `/forbidden`, `/unauthorized`, 404 | – | Trang lỗi |
+| `/privacy` | Public | Chính sách, không gọi API |
 
-Điều hướng sidebar: Overview, Courses, Examinations, Messages cho mọi role; Question banks cho Teacher/Admin; Users cho Admin. Trang chi tiết khóa học: Student chưa `Accepted` chỉ thấy thông báo truy cập, không thấy nội dung.
+Điều hướng sidebar: Overview, Courses, Examinations, Messages cho mọi role; Question banks cho Teacher/Admin/System; Users cho Admin/System. Trang chi tiết khóa học: Student chưa `Accepted` chỉ thấy thông báo truy cập, không thấy nội dung.
 
 ## 5. Đa ngôn ngữ (vi/en)
 
@@ -92,6 +97,8 @@ Bảo vệ bằng `requireAuth()` (chưa đăng nhập → `/login`) và `requir
 - Server Component dùng `getServerLanguage()` và `translate(language, "English text")` từ `lib/i18n-server.ts`; client dùng `useLanguage()`.
 - Mọi chuỗi UI phải có bản Vietnamese và English; không hard-code chuỗi mới ngoài hệ thống này.
 - Nút chuyển ngôn ngữ: `components/language-toggle.tsx`.
+
+Ngoài dictionary chung, nhiều component dùng object `copy.en/copy.vi` hoặc điều kiện theo language; chưa phải mọi chuỗi dùng khóa trung tâm. Metadata/JSON-LD chủ yếu tiếng Việt, mail backend tiếng Anh. Xem [supporting-features.md](supporting-features.md).
 
 ## 6. Theme và UI
 

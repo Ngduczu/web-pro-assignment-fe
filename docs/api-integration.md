@@ -1,5 +1,7 @@
 # Frontend – Tích hợp API backend
 
+Đối chiếu mã nguồn ngày **2026-10-13**. Mô tả implementation trong repository, không phải xác nhận môi trường production.
+
 ## 1. Mô hình: Next.js làm BFF
 
 Trình duyệt **không** gọi REST của backend trực tiếp và **không** giữ token trong JavaScript. Next.js server đóng vai trò proxy (BFF):
@@ -83,6 +85,8 @@ Response `/api/chat/realtime-token`:
 2. Nếu `401` và có refresh token: gọi `POST /auth/refresh`.
 3. Refresh thành công: ghi lại cookie mới và gửi lại request gốc một lần. Thất bại: xóa cookie, trả `401` gốc.
 
+Giới hạn hiện tại: `setAuthCookies`/`clearAuthCookies` bọc try/catch và bỏ qua lỗi ghi cookie. Trong ngữ cảnh không cho ghi cookie, request retry có thể thành công với token mới nhưng browser chưa nhận refresh token đã xoay. `getCurrentUser` trả null ngay nếu không có access cookie dù refresh cookie còn; chưa có cơ chế gom các refresh đồng thời. Vì vậy không coi refresh 30 ngày là cam kết duy trì đăng nhập 30 ngày trong mọi tình huống. Vấn đề và đề xuất tách riêng tại [review-findings.md](review-findings.md).
+
 `requireAuth()` (`lib/auth/session.ts`) giải mã `sub`/`nameidentifier` từ JWT, gọi `/users/{id}/profile`; không đăng nhập thì `redirect("/login")`. `requireRole()` thêm kiểm tra role, sai thì `redirect("/forbidden")`.
 
 ## 5. Lớp API (`lib/api`)
@@ -107,7 +111,11 @@ errors.ts       ApiError (status, title, detail, isUnauthorized, isNotFound, ...
 2. Google → backend callback → backend redirect tới `/oauth/callback?loginCode=...` của frontend.
 3. `OAuthCallbackClient` gọi `authSessionApi.redeemLoginCode({ loginCode })` → `/api/auth/login-code` → cookie phiên được đặt → chuyển vào dashboard.
 
+Callback cấu hình cho BFF phải là `http://localhost:3000/api/backend/auth/oauth/Google/callback` (production dùng HTTPS host frontend). BFF chuyển Cookie vào backend, giữ redirect callback ở chế độ manual, chuyển Location/Set-Cookie ra browser. Không đặt callback trên host API khác với host đã nhận cookie binding. Code callback cũng hỗ trợ nhận `code/state` và gọi proxy; sessionStorage đánh dấu pending/completed để hạn chế redeem trùng trong tab, không lưu token dài hạn.
+
 Liên kết Google cho tài khoản đang đăng nhập dùng `oauthLinkAuthorize("Google")`.
+
+Backend link callback hiện trả JSON `{userId,provider,externalEmail}`, không redirect như login callback. Tổng quát proxy chỉ chuyển tiếp một tập header (Content-Type, Content-Disposition, Content-Length, Accept-Ranges, Location, Set-Cookie); không chuyển mọi header, đặc biệt Range/Content-Range và Cache-Control backend chưa được giữ đầy đủ.
 
 ## 7. Chat realtime
 
@@ -152,3 +160,13 @@ Trang quản lý khóa học (`components/courses/course-management-panel.tsx`, 
 ## 12. Reset lượt thi
 
 Giảng viên khóa học có thể xóa lượt thi từ lịch sử kết quả; thao tác gọi `DELETE /api/examinations/{examinationId}/attempts/{attemptId}` qua `clientApis.examinations.resetAttempt`. Backend xóa lượt thi cùng đáp án/vi phạm liên quan. Học viên chỉ bắt đầu lại nếu kỳ thi vẫn Published, chưa đến hạn và enrollment còn Accepted; reset không gia hạn kỳ thi.
+
+## 13. Xuất kết quả, chỉnh đáp án và chia sẻ ngân hàng
+
+`components/examinations/examination-results.tsx` tải lần lượt toàn bộ trang kết quả (`GET /api/examinations/{id}/attempts`, pageSize=20), tạo XLSX bằng ExcelJS trong browser và tải Blob. Không có endpoint export hoặc file xuất lưu trên server; dữ liệu có thể thay đổi giữa các trang khi kỳ thi còn diễn ra.
+
+`question-bank-workspace.tsx` gọi `PUT /api/questions/{id}` với tùy chọn options/answers/shuffleOptions để sửa đáp án, và `POST /api/question-banks/{id}/share` để sao chép cho Teacher Active khác. Admin/System chỉ đọc ngân hàng; backend trả ownerFullName/ownerEmail và hỗ trợ ownerSearch. Frontend tải bank cùng câu hỏi từng bank rồi lọc/hiển thị, nên có nhiều request khi bank lớn.
+
+## 14. Dữ liệu nền và giới hạn tổng hợp
+
+`exercise-workspace.tsx` có polling 15 giây ở nhánh theo dõi bài nộp để cập nhật điểm; không phải SignalR bài tập. Dashboard, trang `/exams` và chat ghép dữ liệu từ nhiều API. Một số trang lấy riêng trang 20 courses/enrollments đầu tiên; không coi các số liệu đó là tổng toàn hệ thống. Danh sách file gọi API ở [source-map.md](source-map.md), các vấn đề chưa sửa ở [review-findings.md](review-findings.md).
