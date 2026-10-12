@@ -11,6 +11,7 @@ export function createUsersApi(request: ApiTransport) {
     updateMe: (body: UpdateMyProfileRequest) => request<UserProfileDto>("/users/me", { method: "PUT", body }),
     changeMyPassword: (body: ChangeMyPasswordRequest) => request<void>("/users/me/password", { method: "PUT", body }),
     findForChat: (email: string) => request<ChatUserSearchDto>("/users/search-for-chat", { query: { email } }),
+    searchForChatByName: (name: string) => request<ChatUserSearchDto[]>("/users/search-for-chat/by-name", { query: { name } }),
   };
 }
 

@@ -14,8 +14,6 @@ import { HubConnectionState, type HubConnection } from "@microsoft/signalr";
 import { createChatHubConnection } from "@/lib/api/chat-realtime";
 import Image from "next/image";
 
-type RealtimeStatus = "connecting" | "connected" | "disconnected";
-
 function sortRoomsByActivity(rooms: ChatRoomDto[]) {
   return [...rooms].sort((a, b) => {
     const aActivity = Date.parse(a.latestMessage?.createdAt ?? a.createdAt) || 0;
@@ -64,7 +62,6 @@ export function ChatWorkspace({
   const markedReadRef = useRef(new Set<string>());
   const messageLoadsRef = useRef(new Map<string, Promise<ChatMessageDto[]>>());
   const hiddenDirectRoomsRef = useRef(new Map<string, ChatRoomDto>());
-  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("connecting");
 
   function listMessages(roomId: string) {
     const pending = messageLoadsRef.current.get(roomId);
@@ -263,7 +260,6 @@ export function ChatWorkspace({
     async function start() {
       while (!disposed) {
         try {
-          setRealtimeStatus("connecting");
           connection = await createChatHubConnection();
           let established = false;
           if (disposed) {
@@ -292,10 +288,8 @@ export function ChatWorkspace({
           connection.onreconnecting(() => {
             joinedRoomIdsRef.current.clear();
             joiningRoomIdsRef.current.clear();
-            setRealtimeStatus("connecting");
           });
           connection.onreconnected(() => {
-            setRealtimeStatus("connected");
             void synchronizeSelectedRoom().catch(() => undefined);
           });
           connection.onclose(() => {
@@ -303,7 +297,6 @@ export function ChatWorkspace({
             joiningRoomIdsRef.current.clear();
             if (!disposed) {
               connectionRef.current = undefined;
-              setRealtimeStatus("disconnected");
               if (established) {
                 restartTimer = window.setTimeout(() => void start(), 1_000);
               }
@@ -317,14 +310,12 @@ export function ChatWorkspace({
             return;
           }
           established = true;
-          setRealtimeStatus("connected");
           await synchronizeSelectedRoom().catch((caught) => {
             setError(languageRef.current === "en" && caught instanceof Error ? caught.message : (languageRef.current === "vi" ? "Không thể đồng bộ phòng chat." : "Unable to synchronize chat room."));
           });
           return;
         } catch {
           connectionRef.current = undefined;
-          setRealtimeStatus("disconnected");
           await connection?.stop().catch(() => undefined);
           if (!disposed) await new Promise((resolve) => window.setTimeout(resolve, 3_000));
         }
@@ -447,12 +438,6 @@ export function ChatWorkspace({
                       <Trash2 className="size-4" />
                     </button>
                   ) : null}
-                  <div className="flex items-center gap-2 rounded-full bg-muted/70 px-2.5 py-1.5 text-xs text-muted-foreground" role="status" aria-live="polite">
-                    <span className={`size-2 rounded-full ${realtimeStatus === "connected" ? "bg-emerald-500" : realtimeStatus === "connecting" ? "animate-pulse bg-amber-500" : "bg-destructive"}`} />
-                    <span className="hidden sm:inline">
-                      {realtimeStatus === "connected" ? (isVi ? "Trực tuyến" : "Live") : realtimeStatus === "connecting" ? (isVi ? "Đang kết nối" : "Connecting") : (isVi ? "Mất kết nối" : "Offline")}
-                    </span>
-                  </div>
                 </div>
               </header>
 
