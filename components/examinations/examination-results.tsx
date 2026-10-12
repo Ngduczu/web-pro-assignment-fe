@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, ChevronLeft, ChevronRight, Download, UserRound } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Download, Trash2, UserRound } from "lucide-react";
 import { clientApis } from "@/lib/api/client-apis";
 import { ApiError } from "@/lib/api/errors";
 import { useLanguage } from "@/lib/i18n";
@@ -15,6 +15,7 @@ const copy = {
     active: "In progress", pending: "Pending release", previous: "Previous", next: "Next", page: "Page", of: "of",
     loadError: "Unable to load examination results.", reconcile: "Auto-submit", reconciling: "Submitting...",
     reconcileConfirm: "Auto-submit this expired attempt?", reconcileError: "Unable to auto-submit this attempt.",
+    reset: "Reset attempt", resetting: "Resetting...", resetConfirm: "Permanently delete this attempt, including its answers and violations? The student can restart only before the examination deadline.", resetError: "Unable to reset this attempt.",
     exportResults: "Export results", exportingResults: "Preparing XLSX...", exportError: "Unable to export examination results.",
   },
   vi: {
@@ -23,6 +24,7 @@ const copy = {
     active: "Đang làm", pending: "Chờ công bố", previous: "Trước", next: "Sau", page: "Trang", of: "trên",
     loadError: "Không thể tải kết quả kỳ thi.", reconcile: "Tự động nộp", reconciling: "Đang nộp...",
     reconcileConfirm: "Tự động nộp lượt thi đã hết điều kiện này?", reconcileError: "Không thể tự động nộp lượt thi này.",
+    reset: "Cấp lượt làm lại", resetting: "Đang đặt lại...", resetConfirm: "Xóa vĩnh viễn lượt thi cùng câu trả lời và vi phạm đã lưu? Học viên chỉ có thể bắt đầu lại trước hạn kỳ thi.", resetError: "Không thể đặt lại lượt thi này.",
     exportResults: "Xuất kết quả", exportingResults: "Đang tạo tệp XLSX...", exportError: "Không thể xuất kết quả kỳ thi.",
   },
 };
@@ -40,7 +42,7 @@ function applicableAutoSubmitReason(item: ExaminationAttemptResultDto, examinati
   return Date.now() >= deadline ? "DurationExpired" : undefined;
 }
 
-export function ExaminationResults({ examination, initial, canAutoSubmit = false }: { examination: ExaminationDto; initial: PaginatedResponse<ExaminationAttemptResultDto>; canAutoSubmit?: boolean }) {
+export function ExaminationResults({ examination, initial, canAutoSubmit = false, canResetAttempt = true }: { examination: ExaminationDto; initial: PaginatedResponse<ExaminationAttemptResultDto>; canAutoSubmit?: boolean; canResetAttempt?: boolean }) {
   const { language } = useLanguage();
   const text = copy[language];
   const [data, setData] = useState(initial);
@@ -61,6 +63,14 @@ export function ExaminationResults({ examination, initial, canAutoSubmit = false
     setBusyAttemptId(item.id); setError(undefined);
     try { await clientApis.examinations.autoSubmit(item.id, reason); await go(data.page); }
     catch (caught) { setError(language === "en" && caught instanceof ApiError ? caught.detail : text.reconcileError); }
+    finally { setBusyAttemptId(undefined); }
+  }
+
+  async function resetAttempt(item: ExaminationAttemptResultDto) {
+    if (!window.confirm(text.resetConfirm)) return;
+    setBusyAttemptId(item.id); setError(undefined);
+    try { await clientApis.examinations.resetAttempt(examination.id, item.id); await go(data.page); }
+    catch (caught) { setError(language === "en" && caught instanceof ApiError ? caught.detail : text.resetError); }
     finally { setBusyAttemptId(undefined); }
   }
 
@@ -129,8 +139,8 @@ export function ExaminationResults({ examination, initial, canAutoSubmit = false
     {!data.items.length ? <div className="border border-dashed border-border p-6 text-sm text-muted-foreground">{text.noAttempts}</div> : (
       <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-xs">
         <table className="w-full min-w-5xl text-left text-sm">
-          <thead className="border-b border-border bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground"><tr><th className="px-4 py-3 font-medium">{text.student}</th><th className="px-4 py-3 font-medium">{text.status}</th><th className="px-4 py-3 font-medium">{text.started}</th><th className="px-4 py-3 font-medium">{text.submitted}</th><th className="px-4 py-3 font-medium">{text.result}</th><th className="px-4 py-3 text-right font-medium">{text.violations}</th>{canAutoSubmit ? <th className="px-4 py-3 text-right font-medium">{text.action}</th> : null}</tr></thead>
-          <tbody className="divide-y divide-border">{data.items.map((item) => { const reason = canAutoSubmit ? applicableAutoSubmitReason(item, examination) : undefined; const active = item.status === "InProgress" || item.status === "Disconnected"; return <tr key={item.id} className="hover:bg-muted/20"><td className="px-4 py-4"><div className="flex items-center gap-3"><span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><UserRound className="size-4" /></span><div><p className="font-medium">{item.studentFullName}</p><p className="text-xs text-muted-foreground">{item.studentEmail}</p></div></div></td><td className="px-4 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${active ? "bg-amber-500/10 text-amber-700 dark:text-amber-300" : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"}`}>{status(item.status)}</span></td><td className="px-4 py-4 text-muted-foreground">{formatDate(item.startedAt, language)}</td><td className="px-4 py-4 text-muted-foreground">{formatDate(item.submittedAt, language)}</td><td className="px-4 py-4 font-medium">{result(item)}</td><td className={`px-4 py-4 text-right font-medium ${item.violationCount ? "text-destructive" : ""}`}>{item.violationCount}</td>{canAutoSubmit ? <td className="px-4 py-4 text-right">{reason ? <button type="button" disabled={busyAttemptId === item.id} onClick={() => autoSubmit(item, reason)} className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/5 disabled:opacity-50"><AlertTriangle className="size-3.5" />{busyAttemptId === item.id ? text.reconciling : text.reconcile}</button> : "—"}</td> : null}</tr>; })}</tbody>
+          <thead className="border-b border-border bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground"><tr><th className="px-4 py-3 font-medium">{text.student}</th><th className="px-4 py-3 font-medium">{text.status}</th><th className="px-4 py-3 font-medium">{text.started}</th><th className="px-4 py-3 font-medium">{text.submitted}</th><th className="px-4 py-3 font-medium">{text.result}</th><th className="px-4 py-3 text-right font-medium">{text.violations}</th>{canAutoSubmit || canResetAttempt ? <th className="px-4 py-3 text-right font-medium">{text.action}</th> : null}</tr></thead>
+          <tbody className="divide-y divide-border">{data.items.map((item) => { const reason = canAutoSubmit ? applicableAutoSubmitReason(item, examination) : undefined; const active = item.status === "InProgress" || item.status === "Disconnected"; return <tr key={item.id} className="hover:bg-muted/20"><td className="px-4 py-4"><div className="flex items-center gap-3"><span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><UserRound className="size-4" /></span><div><p className="font-medium">{item.studentFullName}</p><p className="text-xs text-muted-foreground">{item.studentEmail}</p></div></div></td><td className="px-4 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${active ? "bg-amber-500/10 text-amber-700 dark:text-amber-300" : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"}`}>{status(item.status)}</span></td><td className="px-4 py-4 text-muted-foreground">{formatDate(item.startedAt, language)}</td><td className="px-4 py-4 text-muted-foreground">{formatDate(item.submittedAt, language)}</td><td className="px-4 py-4 font-medium">{result(item)}</td><td className={`px-4 py-4 text-right font-medium ${item.violationCount ? "text-destructive" : ""}`}>{item.violationCount}</td>{canAutoSubmit || canResetAttempt ? <td className="px-4 py-4 text-right"><div className="flex flex-wrap justify-end gap-2">{reason ? <button type="button" disabled={busyAttemptId === item.id} onClick={() => autoSubmit(item, reason)} className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/5 disabled:opacity-50"><AlertTriangle className="size-3.5" />{busyAttemptId === item.id ? text.reconciling : text.reconcile}</button> : null}{canResetAttempt ? <button type="button" disabled={busyAttemptId === item.id || busy || exporting} onClick={() => resetAttempt(item)} className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/5 disabled:cursor-not-allowed disabled:opacity-50"><Trash2 className="size-3.5" />{busyAttemptId === item.id ? text.resetting : text.reset}</button> : null}{!reason && !canResetAttempt ? "—" : null}</div></td> : null}</tr>; })}</tbody>
         </table>
       </div>
     )}

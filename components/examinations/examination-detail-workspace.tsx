@@ -37,6 +37,10 @@ const violationCopy = {
     fullscreenFailed: "Trình duyệt không thể chuyển sang toàn màn hình. Hãy thử lại để tiếp tục làm bài.",
   },
 };
+const violationErrorCopy = {
+  en: "Unable to report an exam rule violation. Check your connection and continue only after reconnecting.",
+  vi: "Không thể gửi báo cáo vi phạm quy chế thi. Hãy kiểm tra kết nối và chỉ tiếp tục khi đã kết nối lại.",
+};
 function localValue(value: string) { const date = new Date(value); date.setMinutes(date.getMinutes() - date.getTimezoneOffset()); return date.toISOString().slice(0, 16); }
 function errorText(error: unknown, fallback: string) { return error instanceof ApiError ? error.detail : fallback; }
 
@@ -90,7 +94,8 @@ export function StudentExaminationWorkspace({ exam, initialAttempt, standalone =
   useEffect(() => { if (!active) return; const timer = window.setInterval(() => setRemaining((value) => Math.max(0, value - 1)), 1000); return () => window.clearInterval(timer); }, [active]);
   const updateAttempt = useCallback((next: ExaminationAttemptDto) => setAttempt(next), []);
   const handleViolation = useCallback((type: ExaminationViolationType) => { setViolationWarning(type); setFullscreenError(false); }, []);
-  useExaminationGuard({ attemptId: attempt?.id, active: Boolean(active), security: exam.security, onAttemptChange: updateAttempt, onViolation: handleViolation });
+  const handleViolationError = useCallback(() => setError(violationErrorCopy[language]), [language]);
+  useExaminationGuard({ attemptId: attempt?.id, active: Boolean(active), security: exam.security, onAttemptChange: updateAttempt, onViolation: handleViolation, onViolationError: handleViolationError });
   useEffect(() => { if (!standalone || !active || loadingQuestions || !exam.security.requireFullscreen || !document.fullscreenEnabled || document.fullscreenElement) return; const timer = window.setTimeout(() => setViolationWarning((value) => value ?? "ExitFullscreen"), 0); return () => window.clearTimeout(timer); }, [active, exam.security.requireFullscreen, loadingQuestions, standalone]);
   useEffect(() => { if (!completed) return; let cancelled = false; const leaveFullscreen = document.fullscreenElement ? document.exitFullscreen().catch(() => undefined) : Promise.resolve(); if (standalone) void leaveFullscreen.then(() => { if (!cancelled) window.location.replace(`/courses/${exam.courseId}/examinations/${exam.id}`); }); return () => { cancelled = true; }; }, [completed, exam.courseId, exam.id, standalone]);
   useEffect(() => { if (remaining > 0 || !active || !attempt?.id || autoSubmitting.current) return; autoSubmitting.current = true; let cancelled = false; void clientApis.examinations.submitAttempt(attempt.id).then((result) => { if (!cancelled) setAttempt(result); }).catch((caught) => { if (!cancelled) setError(language === "en" ? errorText(caught, text.expiredError) : text.expiredError); }).finally(() => { autoSubmitting.current = false; }); return () => { cancelled = true; }; }, [active, attempt?.id, language, remaining, text.expiredError]);

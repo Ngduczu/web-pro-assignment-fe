@@ -130,10 +130,10 @@ Luồng trong `components/chat`: tải danh sách room/lịch sử bằng REST �
 | Copy/cut/Ctrl+C/X | `CopyAttempt` | `blockCopyPaste` |
 | Paste/Ctrl+V | `PasteAttempt` | `blockCopyPaste` |
 | Chuột phải | `RightClickAttempt` | `blockRightClick` |
-| F12, Ctrl+Shift+I/J/C/K, Ctrl+U, kích thước cửa sổ bất thường | `DevToolsSuspected` | `detectDevTools` |
+| F11, F12, Ctrl+Shift+I/J/C/K, Ctrl+U, kích thước cửa sổ bất thường | `DevToolsSuspected` | `detectDevTools` |
 | Thoát fullscreen | `ExitFullscreen` kèm `durationSeconds` | `requireFullscreen` |
 
-Mỗi vi phạm gọi `POST /api/backend/examination-attempts/{attemptId}/violations?violationType=...`. Khi rời trang, `fetch(..., { keepalive: true })` gọi `.../disconnect`. Backend vẫn là nơi đếm vi phạm, áp `maxViolations` và tự nộp bài; frontend chỉ phát hiện và báo. Hook cũng khóa phím Escape bằng Keyboard Lock (Chromium) khi fullscreen và chặn PrintScreen.
+Mỗi vi phạm gọi `POST /api/backend/examination-attempts/{attemptId}/violations?violationType=...`. Việc dò kích thước cửa sổ để phát hiện DevTools chạy mỗi 250 ms. Khi rời trang, `fetch(..., { keepalive: true })` gọi `.../disconnect`. Backend vẫn là nơi đếm vi phạm, áp `maxViolations` và tự nộp bài; frontend chỉ phát hiện và báo. Hook thử khóa Escape bằng Keyboard Lock (Chromium) khi fullscreen và chặn PrintScreen. F11 được phát hiện/thử chặn nhưng trình duyệt có thể giữ quyền xử lý phím tắt cấp hệ thống; không thể bảo đảm chặn bằng JavaScript.
 
 Luồng thi: trang kỳ thi → `start` → `/exam-attempts/{examinationId}` (yêu cầu attempt `InProgress`/`Disconnected`, nếu không sẽ chuyển về trang kỳ thi) → lưu đáp án từng câu → `submit`. Reload gọi `my-attempt` để khôi phục, `Disconnected` thì gọi `reconnect`.
 
@@ -148,3 +148,7 @@ Luồng thi: trang kỳ thi → `start` → `/exam-attempts/{examinationId}` (y�
 ## 11. Thêm học viên vào khóa học bằng email
 
 Trang quản lý khóa học (`components/courses/course-management-panel.tsx`, mục "Yêu cầu đăng ký") có ô nhập nhiều email (phân tách bằng dấu phẩy, khoảng trắng, xuống dòng; tối đa 100). Gọi `clientApis.enrollments.addByEmail` → `POST /api/courses/{courseId}/enrollments/by-email`, hiển thị kết quả từng email (`Added`, `AlreadyAccepted`, `InvalidEmail`, `NotFound`, `NotStudent`, `Inactive`, `CourseFull`); email lỗi được giữ lại trong ô nhập để sửa. Chỉ hiện khi khóa học `Open` và chưa xóa mềm.
+
+## 12. Reset lượt thi
+
+Giảng viên khóa học có thể xóa lượt thi từ lịch sử kết quả; thao tác gọi `DELETE /api/examinations/{examinationId}/attempts/{attemptId}` qua `clientApis.examinations.resetAttempt`. Backend xóa lượt thi cùng đáp án/vi phạm liên quan. Học viên chỉ bắt đầu lại nếu kỳ thi vẫn Published, chưa đến hạn và enrollment còn Accepted; reset không gia hạn kỳ thi.
