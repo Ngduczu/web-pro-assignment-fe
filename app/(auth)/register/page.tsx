@@ -30,7 +30,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const { language, t } = useLanguage();
   const text = copy[language];
-  const { register, handleSubmit, control, formState: { errors, isSubmitting } } = useForm<RegisterValues>({ resolver: zodResolver(registerSchema), defaultValues: { email: "", password: "", passwordConfirm: "" } });
+  const { register, handleSubmit, control, formState: { errors, isSubmitting } } = useForm<RegisterValues>({ resolver: zodResolver(registerSchema), defaultValues: { fullName: "", email: "", phone: "", password: "", passwordConfirm: "" } });
   const passwordField = register("password");
   const confirmField = register("passwordConfirm");
   const password = useWatch({ control, name: "password" });
@@ -39,7 +39,7 @@ export default function RegisterPage() {
   async function onSubmit(values: RegisterValues) {
     setServerError(undefined);
     try {
-      const result = await clientApis.auth.register(values);
+      const result = await clientApis.auth.register({ ...values, phone: values.phone || null });
       setSuccess(`${text.sent} ${new Date(result.verificationCodeExpiresAt).toLocaleTimeString(language === "vi" ? "vi-VN" : "en", { hour: "2-digit", minute: "2-digit" })}.`);
       router.push(`/verify-email?email=${encodeURIComponent(result.email)}`);
     } catch (error) {
@@ -52,7 +52,9 @@ export default function RegisterPage() {
       <form className="space-y-5" onSubmit={handleSubmit(onSubmit)} noValidate>
         <FormMessage message={serverError} />
         <FormMessage message={success} tone="success" />
+        <div className="space-y-2"><label htmlFor="fullName" className="text-sm font-medium">{t("fullName")}<RequiredMark /></label><input id="fullName" autoComplete="name" maxLength={100} {...register("fullName")} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />{errors.fullName ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.fullName.message)}</p> : null}</div>
         <div className="space-y-2"><label htmlFor="email" className="text-sm font-medium">{t("email")}<RequiredMark /></label><input id="email" type="email" autoComplete="email" {...register("email")} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />{errors.email ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.email.message)}</p> : null}</div>
+        <div className="space-y-2"><label htmlFor="phone" className="text-sm font-medium">{t("phoneNumber")} <span className="font-normal text-muted-foreground">({t("optional")})</span></label><input id="phone" type="tel" inputMode="tel" autoComplete="tel" maxLength={20} {...register("phone")} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />{errors.phone ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.phone.message)}</p> : null}</div>
         <div className="space-y-2"><label htmlFor="password" className="text-sm font-medium">{t("password")}<RequiredMark /></label><PasswordInput id="password" {...passwordField} value={password} autoComplete="new-password" />{errors.password ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.password.message)}</p> : null}</div>
         <div className="space-y-2"><label htmlFor="passwordConfirm" className="text-sm font-medium">{t("confirmPassword")}<RequiredMark /></label><PasswordInput id="passwordConfirm" {...confirmField} value={passwordConfirm} placeholder={t("confirmPassword")} autoComplete="new-password" />{errors.passwordConfirm ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.passwordConfirm.message)}</p> : null}</div>
         <AuthSubmit loading={isSubmitting}>{t("createAccount")}</AuthSubmit>

@@ -35,6 +35,8 @@ type TranslationKey =
   | "forgotPassword"
   | "password"
   | "email"
+  | "fullName"
+  | "phoneNumber"
   | "notifications"
   | "forgotPasswordTitle"
   | "forgotPasswordDescription"
@@ -124,6 +126,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     forgotPassword: "Forgot password?",
     password: "Password",
     email: "Email",
+    fullName: "Full name",
+    phoneNumber: "Phone number",
     notifications: "Notifications",
     forgotPasswordTitle: "Forgot password",
     forgotPasswordDescription: "Enter your email and we will send a password reset code.",
@@ -212,6 +216,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     forgotPassword: "Quên mật khẩu?",
     password: "Mật khẩu",
     email: "Email",
+    fullName: "Họ và tên",
+    phoneNumber: "Số điện thoại",
     notifications: "Thông báo",
     forgotPasswordTitle: "Quên mật khẩu",
     forgotPasswordDescription: "Nhập email để nhận mã đặt lại mật khẩu.",
