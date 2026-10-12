@@ -15,6 +15,7 @@ export function createChatApi(request: ApiTransport) {
     joinRoom: (roomId: string) => request<ChatRoomDto>(`/chat/rooms/${roomId}/join`, { method: "POST" }),
     getOrCreateCourseRoom: (courseId: string) => request<ChatRoomDto>(`/chat/courses/${courseId}`, { method: "POST" }),
     getOrCreateDirectRoom: (userId: string) => request<ChatRoomDto>(`/chat/direct/${userId}`, { method: "POST" }),
+    removeDirectRoom: (roomId: string) => request<void>(`/chat/rooms/${roomId}`, { method: "DELETE" }),
     listMessages: (roomId: string, query?: ChatPageQuery) => request<ChatMessageDto[]>(`/chat/rooms/${roomId}/messages`, { query }),
     sendMessage: (roomId: string, body: SendChatMessageRequest) => request<ChatMessageDto>(`/chat/rooms/${roomId}/messages`, { method: "POST", body }),
     sendAttachment: (roomId: string, file: File, content?: string | null, replyToMessageId?: string | null) => request<ChatMessageDto>(`/chat/rooms/${roomId}/messages/attachment`, { method: "POST", body: fileBody(file, content, replyToMessageId) }),

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, MessageCircle, X } from "lucide-react";
+import { ArrowLeft, Trash2, X } from "lucide-react";
 import { clientApis } from "@/lib/api/client-apis";
 import { ApiError } from "@/lib/api/errors";
 import type { ChatMessageDto, ChatRoomDto, ChatUserSearchDto, CourseDto } from "@/types/api";
@@ -53,6 +53,8 @@ export function ChatWorkspace({
   const [messages, setMessages] = useState<ChatMessageDto[]>([]), [text, setText] = useState(""), [reply, setReply] = useState<ChatMessageDto>();
   const [busy, setBusy] = useState(false), [loading, setLoading] = useState(Boolean(initialSelected)), [error, setError] = useState<string>();
   const [directModal, setDirectModal] = useState(false);
+  const [deleteRoomConfirm, setDeleteRoomConfirm] = useState(false);
+  const [deletingRoom, setDeletingRoom] = useState(false);
   const [directLabels, setDirectLabels] = useState<Record<string, string>>({});
   const activeRoomId = useRef(initialSelected?.id);
   const selectedRoomRef = useRef<ChatRoomDto | undefined>(initialSelected);
@@ -61,6 +63,7 @@ export function ChatWorkspace({
   const joiningRoomIdsRef = useRef(new Set<string>());
   const markedReadRef = useRef(new Set<string>());
   const messageLoadsRef = useRef(new Map<string, Promise<ChatMessageDto[]>>());
+  const hiddenDirectRoomsRef = useRef(new Map<string, ChatRoomDto>());
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("connecting");
 
   function listMessages(roomId: string) {
@@ -76,8 +79,10 @@ export function ChatWorkspace({
 
   function promoteRoomForMessage(message: ChatMessageDto, hasUnread = false) {
     const room = roomsRef.current.find((item) => item.id === message.chatRoomId)
-      ?? (selectedRoomRef.current?.id === message.chatRoomId ? selectedRoomRef.current : undefined);
+      ?? (selectedRoomRef.current?.id === message.chatRoomId ? selectedRoomRef.current : undefined)
+      ?? hiddenDirectRoomsRef.current.get(message.chatRoomId);
     if (!room) return;
+    hiddenDirectRoomsRef.current.delete(message.chatRoomId);
 
     const updated: ChatRoomDto = {
       ...room,
@@ -188,7 +193,11 @@ export function ChatWorkspace({
   }
 
   async function joinAllRealtimeRooms() {
-    for (const room of roomsRef.current) {
+    const realtimeRooms = [
+      ...roomsRef.current,
+      ...hiddenDirectRoomsRef.current.values(),
+    ];
+    for (const room of realtimeRooms) {
       await joinRealtimeRoom(room);
     }
   }
@@ -352,6 +361,31 @@ export function ChatWorkspace({
   async function file(fileValue: File) { if (!selected) return; setBusy(true); setError(undefined); try { const message = await clientApis.chat.sendAttachment(selected.id, fileValue, text.trim() || null, reply?.id ?? null); setMessages((old) => [message, ...old.filter((item) => item.id !== message.id)]); promoteRoomForMessage(message); setText(""); setReply(undefined); } catch (caught) { setError(languageRef.current === "en" && caught instanceof ApiError ? caught.detail : (languageRef.current === "vi" ? "Không thể tải tệp đính kèm lên." : "Unable to upload attachment.")); } finally { setBusy(false); } }
   async function edit(message: ChatMessageDto) { const content = prompt(isVi ? "Chỉnh sửa tin nhắn" : "Edit message", message.content ?? ""); if (content === null || !content.trim()) return; try { const updated = await clientApis.chat.editMessage(message.id, { content: content.trim() }); setMessages((old) => old.map((item) => item.id === updated.id ? updated : item)); } catch (caught) { setError(languageRef.current === "en" && caught instanceof ApiError ? caught.detail : (languageRef.current === "vi" ? "Không thể chỉnh sửa tin nhắn." : "Unable to edit message.")); } }
   async function remove(message: ChatMessageDto) { if (!confirm(isVi ? "Xóa tin nhắn này?" : "Delete this message?")) return; try { await clientApis.chat.removeMessage(message.id); setMessages((old) => old.filter((item) => item.id !== message.id)); } catch (caught) { setError(languageRef.current === "en" && caught instanceof ApiError ? caught.detail : (languageRef.current === "vi" ? "Không thể xóa tin nhắn." : "Unable to delete message.")); } }
+  async function removeDirectRoom() {
+    const room = selectedRoomRef.current;
+    if (!room || room.courseId) return;
+    setDeletingRoom(true);
+    setError(undefined);
+    try {
+      await clientApis.chat.removeDirectRoom(room.id);
+      hiddenDirectRoomsRef.current.set(room.id, room);
+      const remainingRooms = roomsRef.current.filter((item) => item.id !== room.id);
+      roomsRef.current = remainingRooms;
+      setRooms(remainingRooms);
+      activeRoomId.current = undefined;
+      selectedRoomRef.current = undefined;
+      setSelected(undefined);
+      setMessages([]);
+      setReply(undefined);
+      setDeleteRoomConfirm(false);
+    } catch (caught) {
+      setError(languageRef.current === "en" && caught instanceof ApiError
+        ? caught.detail
+        : (languageRef.current === "vi" ? "Không thể xóa cuộc trò chuyện." : "Unable to delete the conversation."));
+    } finally {
+      setDeletingRoom(false);
+    }
+  }
   async function download(messageId: string, attachmentId: string, fileName: string) { try { const blob = await clientApis.chat.getAttachment(messageId, attachmentId, true); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = fileName; link.click(); URL.revokeObjectURL(url); } catch (caught) { setError(languageRef.current === "en" && caught instanceof ApiError ? caught.detail : (languageRef.current === "vi" ? "Không thể tải tệp đính kèm xuống." : "Unable to download attachment.")); } }
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
@@ -401,11 +435,24 @@ export function ChatWorkspace({
                     </p>
                   </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-2 rounded-full bg-muted/70 px-2.5 py-1.5 text-xs text-muted-foreground" role="status" aria-live="polite">
-                  <span className={`size-2 rounded-full ${realtimeStatus === "connected" ? "bg-emerald-500" : realtimeStatus === "connecting" ? "animate-pulse bg-amber-500" : "bg-destructive"}`} />
-                  <span className="hidden sm:inline">
-                    {realtimeStatus === "connected" ? (isVi ? "Trực tuyến" : "Live") : realtimeStatus === "connecting" ? (isVi ? "Đang kết nối" : "Connecting") : (isVi ? "Mất kết nối" : "Offline")}
-                  </span>
+                <div className="flex shrink-0 items-center gap-2">
+                  {!selected.courseId ? (
+                    <button
+                      type="button"
+                      onClick={() => setDeleteRoomConfirm(true)}
+                      className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40"
+                      aria-label={isVi ? "Xóa cuộc trò chuyện cá nhân" : "Delete personal conversation"}
+                      title={isVi ? "Xóa cuộc trò chuyện" : "Delete conversation"}
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  ) : null}
+                  <div className="flex items-center gap-2 rounded-full bg-muted/70 px-2.5 py-1.5 text-xs text-muted-foreground" role="status" aria-live="polite">
+                    <span className={`size-2 rounded-full ${realtimeStatus === "connected" ? "bg-emerald-500" : realtimeStatus === "connecting" ? "animate-pulse bg-amber-500" : "bg-destructive"}`} />
+                    <span className="hidden sm:inline">
+                      {realtimeStatus === "connected" ? (isVi ? "Trực tuyến" : "Live") : realtimeStatus === "connecting" ? (isVi ? "Đang kết nối" : "Connecting") : (isVi ? "Mất kết nối" : "Offline")}
+                    </span>
+                  </div>
                 </div>
               </header>
 
@@ -430,6 +477,31 @@ export function ChatWorkspace({
         </section>
       </div>
       {directModal ? <DirectMessageDialog onClose={() => setDirectModal(false)} onCreated={directCreated} /> : null}
+      {deleteRoomConfirm ? (
+        <div className="fixed inset-0 z-50 flex min-h-screen items-center justify-center overflow-y-auto bg-background/55 p-4 backdrop-blur-sm sm:p-8">
+          <section role="alertdialog" aria-modal="true" aria-labelledby="delete-chat-title" aria-describedby="delete-chat-description" className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl sm:p-7">
+            <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+              <Trash2 className="size-7" />
+            </div>
+            <h2 id="delete-chat-title" className="mt-4 text-center text-xl font-semibold">
+              {isVi ? "Xóa cuộc trò chuyện?" : "Delete conversation?"}
+            </h2>
+            <p id="delete-chat-description" className="mt-3 text-center text-sm leading-6 text-muted-foreground">
+              {isVi
+                ? "Cuộc trò chuyện và lịch sử hiện tại sẽ bị xóa khỏi tài khoản của bạn. Người còn lại vẫn giữ được nội dung của họ."
+                : "This conversation and its current history will be removed from your account. The other person will keep their copy."}
+            </p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <button type="button" autoFocus disabled={deletingRoom} onClick={() => setDeleteRoomConfirm(false)} className="min-h-11 rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-50">
+                {isVi ? "Hủy" : "Cancel"}
+              </button>
+              <button type="button" disabled={deletingRoom} onClick={() => void removeDirectRoom()} className="min-h-11 rounded-lg bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50">
+                {deletingRoom ? (isVi ? "Đang xóa…" : "Deleting…") : (isVi ? "Xóa cuộc trò chuyện" : "Delete conversation")}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }
