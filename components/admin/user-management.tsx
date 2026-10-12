@@ -49,6 +49,7 @@ const copy = {
     createUserSubmit: "Create user",
     saveError: "Unable to save user.",
     statusError: "Unable to update account status.",
+    teacherOwnershipConflict: "This teacher still owns courses or question banks. Transfer those resources before changing their role or account status.",
     refresh: "Refresh users",
     refreshing: "Refreshing...",
     refreshError: "Unable to refresh users.",
@@ -89,6 +90,7 @@ const copy = {
     createUserSubmit: "Tạo người dùng",
     saveError: "Không thể lưu thông tin người dùng.",
     statusError: "Không thể cập nhật trạng thái tài khoản.",
+    teacherOwnershipConflict: "Không thể đổi vai trò hoặc trạng thái của giảng viên này vì họ vẫn đang sở hữu khóa học hoặc ngân hàng câu hỏi. Hãy chuyển quyền sở hữu các tài nguyên này trước khi thử lại.",
     refresh: "Làm mới người dùng",
     refreshing: "Đang làm mới...",
     refreshError: "Không thể làm mới danh sách người dùng.",
@@ -125,7 +127,8 @@ export function UserManagement({
   const [statusDialogUser, setStatusDialogUser] = useState<UserProfileDto>();
   const [editing, setEditing] = useState<UserProfileDto>();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string>();
+  const [editorError, setEditorError] = useState<string>();
+  const [statusError, setStatusError] = useState<string>();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -151,7 +154,7 @@ export function UserManagement({
     setPhone("");
     setPassword("");
     setRole("Student");
-    setError(undefined);
+    setEditorError(undefined);
     setOpen(true);
   }
 
@@ -161,14 +164,27 @@ export function UserManagement({
     setEmail(user.email);
     setPhone(user.phone ?? "");
     setRole(user.role);
-    setError(undefined);
+    setEditorError(undefined);
     setOpen(true);
+  }
+
+  function startStatusChange(user: UserProfileDto) {
+    setStatusError(undefined);
+    setStatusDialogUser(user);
+  }
+
+  function mutationError(caught: unknown, fallback: string, isTeacherOwnershipConflict: boolean) {
+    if (caught instanceof ApiError) {
+      if (language === "en") return caught.detail;
+      if (caught.status === 409 && isTeacherOwnershipConflict) return text.teacherOwnershipConflict;
+    }
+    return fallback;
   }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
-    setError(undefined);
+    setEditorError(undefined);
     try {
       if (editing) {
         const updated = await clientApis.users.update(editing.id, {
@@ -190,7 +206,11 @@ export function UserManagement({
       setOpen(false);
       router.refresh();
     } catch (caught) {
-      setError(language === "en" && caught instanceof ApiError ? caught.detail : text.saveError);
+      setEditorError(mutationError(
+        caught,
+        text.saveError,
+        editing?.role === "Teacher" && role !== "Teacher",
+      ));
     } finally {
       setBusy(false);
     }
@@ -198,14 +218,18 @@ export function UserManagement({
 
   async function updateStatus(user: UserProfileDto, status: AccountStatus) {
     setBusy(true);
-    setError(undefined);
+    setStatusError(undefined);
     try {
       const updated = await clientApis.users.updateStatus(user.id, { status });
       setUsers((current) => current.map((item) => (item.id === updated.id ? updated : item)));
       await refreshUsers();
       setStatusDialogUser(undefined);
     } catch (caught) {
-      setError(language === "en" && caught instanceof ApiError ? caught.detail : text.statusError);
+      setStatusError(mutationError(
+        caught,
+        text.statusError,
+        user.role === "Teacher" && status !== "Active",
+      ));
     } finally {
       setBusy(false);
     }
@@ -280,12 +304,6 @@ export function UserManagement({
 
           {refreshError ? <p role="alert" className="border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{refreshError}</p> : null}
 
-          {error ? (
-            <p className="border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-              {error}
-            </p>
-          ) : null}
-
           {!users.length ? (
             <p className="border border-dashed border-border p-6 text-sm text-muted-foreground">
               {text.noUsers}
@@ -329,7 +347,7 @@ export function UserManagement({
                           </button> : null}
                           {(isSystem ? user.role !== "System" : user.role === "Student" || user.role === "Teacher") ? <button
                             type="button"
-                            onClick={() => setStatusDialogUser(user)}
+                            onClick={() => startStatusChange(user)}
                             disabled={busy}
                             className="border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50"
                           >
@@ -390,6 +408,11 @@ export function UserManagement({
                 <X className="size-4" />
               </button>
             </div>
+            {statusError ? (
+              <p role="alert" className="mt-4 border border-destructive/30 bg-destructive/5 p-3 text-sm leading-5 text-destructive">
+                {statusError}
+              </p>
+            ) : null}
             <div className="mt-5 space-y-2">
               {(["Active", "Disabled", "Banned"] as AccountStatus[]).map((status) => (
                 <button
@@ -506,7 +529,11 @@ export function UserManagement({
                   {isSystem ? <option value="Admin">{text.admin}</option> : null}
                 </select>
               </label>
-              {error ? <p className="text-sm text-destructive">{error}</p> : null}
+              {editorError ? (
+                <p role="alert" className="border border-destructive/30 bg-destructive/5 p-3 text-sm leading-5 text-destructive">
+                  {editorError}
+                </p>
+              ) : null}
             </div>
             <div className="mt-6 flex justify-end gap-3 border-t border-border pt-4">
               <button
