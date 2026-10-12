@@ -170,6 +170,16 @@
     @apply border-border;
   }
 
+  /* Ẩn nút hiện mật khẩu mặc định của trình duyệt */
+  input[type="password"]::-ms-reveal,
+  input[type="password"]::-ms-clear,
+  input::-webkit-credentials-auto-fill-button,
+  input::-webkit-contacts-auto-fill-button {
+    display: none !important;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
   :focus-visible {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
