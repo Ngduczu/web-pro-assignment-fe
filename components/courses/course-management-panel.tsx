@@ -29,9 +29,13 @@ const copy = {
     save: "Save changes",
     saving: "Saving...",
     restoring: "Restoring...",
-    requests: "Enrollment requests",
-    requestDescription: "Review students requesting access to this course.",
-    empty: "No enrollment records yet.",
+    requests: "Course members",
+    requestDescription: "Manage approved students and review pending enrollment requests.",
+    enrollmentTabs: "Course enrollment groups",
+    approvedTab: "Approved",
+    waitingTab: "Pending approval",
+    approvedEmpty: "No students have been approved yet.",
+    waitingEmpty: "No enrollment requests are waiting for approval.",
     student: "Student",
     accept: "Accept",
     reject: "Reject",
@@ -83,9 +87,13 @@ const copy = {
     save: "Lưu thay đổi",
     saving: "Đang lưu...",
     restoring: "Đang khôi phục...",
-    requests: "Yêu cầu đăng ký",
-    requestDescription: "Duyệt học viên đang yêu cầu tham gia khóa học.",
-    empty: "Chưa có bản ghi đăng ký nào.",
+    requests: "Thành viên khóa học",
+    requestDescription: "Quản lý học viên đã được duyệt và các yêu cầu đang chờ xử lý.",
+    enrollmentTabs: "Nhóm thành viên khóa học",
+    approvedTab: "Đã duyệt",
+    waitingTab: "Chờ duyệt",
+    approvedEmpty: "Chưa có học viên nào được duyệt.",
+    waitingEmpty: "Không có yêu cầu tham gia nào đang chờ duyệt.",
     student: "Học viên",
     accept: "Chấp nhận",
     reject: "Từ chối",
@@ -144,6 +152,11 @@ export function CourseManagementPanel({
   const [emailsText, setEmailsText] = useState("");
   const [addResults, setAddResults] = useState<{ email: string; status: AddStudentResultStatus }[]>();
   const [addError, setAddError] = useState<string>();
+  const [enrollmentTab, setEnrollmentTab] = useState<"accepted" | "waiting">("waiting");
+
+  const acceptedEnrollments = enrollments.filter((enrollment) => enrollment.status === "Accepted");
+  const waitingEnrollments = enrollments.filter((enrollment) => enrollment.status === "Waiting");
+  const visibleEnrollments = enrollmentTab === "accepted" ? acceptedEnrollments : waitingEnrollments;
 
   async function addStudents(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -396,11 +409,33 @@ export function CourseManagementPanel({
             </button>
           </form>
         ) : null}
-        {!enrollments.length ? (
-          <p className="rounded-xl border border-dashed border-border bg-muted/20 p-5 text-sm text-muted-foreground">{text.empty}</p>
+        <div className="flex gap-2 overflow-x-auto border-b border-border pb-2" aria-label={text.enrollmentTabs}>
+          <button
+            type="button"
+            aria-pressed={enrollmentTab === "accepted"}
+            onClick={() => setEnrollmentTab("accepted")}
+            className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors ${enrollmentTab === "accepted" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+          >
+            <span>{text.approvedTab}</span>
+            <span className="rounded-full bg-background px-2 py-0.5 text-xs tabular-nums">{acceptedEnrollments.length}</span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={enrollmentTab === "waiting"}
+            onClick={() => setEnrollmentTab("waiting")}
+            className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors ${enrollmentTab === "waiting" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+          >
+            <span>{text.waitingTab}</span>
+            <span className="rounded-full bg-background px-2 py-0.5 text-xs tabular-nums">{waitingEnrollments.length}</span>
+          </button>
+        </div>
+        {!visibleEnrollments.length ? (
+          <p className="rounded-xl border border-dashed border-border bg-muted/20 p-5 text-sm text-muted-foreground">
+            {enrollmentTab === "accepted" ? text.approvedEmpty : text.waitingEmpty}
+          </p>
         ) : (
-          <PaginatedChildren listClassName="space-y-2">
-            {enrollments.map((enrollment) => (
+          <PaginatedChildren listClassName="space-y-2" resetKey={enrollmentTab}>
+            {visibleEnrollments.map((enrollment) => (
               <div
                 key={enrollment.id}
                 className="flex flex-col gap-3 rounded-xl border border-border bg-background p-4 sm:flex-row sm:items-center sm:justify-between"
