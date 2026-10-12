@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export function AreaRefreshButton({
   label,
@@ -11,12 +12,14 @@ export function AreaRefreshButton({
   onRefresh,
   onError,
   disabled = false,
+  className,
 }: {
   label: string;
   loadingLabel: string;
   onRefresh?: () => Promise<void> | void;
   onError?: (error: unknown) => void;
   disabled?: boolean;
+  className?: string;
 }) {
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
@@ -36,7 +39,7 @@ export function AreaRefreshButton({
   }
 
   return (
-    <Button type="button" variant="outline" size="sm" onClick={refresh} disabled={refreshing || isPending || disabled} aria-label={refreshing || isPending ? loadingLabel : label}>
+    <Button type="button" variant="outline" onClick={refresh} disabled={refreshing || isPending || disabled} aria-label={refreshing || isPending ? loadingLabel : label} className={cn("shrink-0 rounded-lg", className)}>
       <RefreshCw className={`size-4 ${refreshing || isPending ? "animate-spin" : ""}`} aria-hidden="true" />
       {refreshing || isPending ? loadingLabel : label}
     </Button>

@@ -394,9 +394,6 @@ export function QuestionBankWorkspace({
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
-        <AreaRefreshButton label={text.refresh} loadingLabel={text.refreshing} onRefresh={refreshBanks} disabled={refreshing || busy || bankModal || questionModal || importModal || shareModal} />
-      </div>
       {error ? (
         <div className="border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">{error}</div>
       ) : null}
@@ -412,6 +409,7 @@ export function QuestionBankWorkspace({
           selectedId={selectedId}
           onSelect={setSelectedId}
           onCreate={() => openBank()}
+          refreshAction={<AreaRefreshButton className="w-full" label={text.refresh} loadingLabel={text.refreshing} onRefresh={refreshBanks} disabled={refreshing || busy || bankModal || questionModal || importModal || shareModal} />}
         />
         <main className="min-w-0">
           {selected ? (

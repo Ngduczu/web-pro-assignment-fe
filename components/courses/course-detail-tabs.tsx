@@ -117,15 +117,23 @@ export function CourseDetailTabs({ courseId, lessons, exercises, examinations, c
     moveLesson(orderedLessons.findIndex((lesson) => lesson.id === draggedLessonId), orderedLessons.findIndex((lesson) => lesson.id === targetId));
   }
 
+  const refreshAction = (
+    <AreaRefreshButton
+      label={language === "vi" ? "Làm mới nội dung" : "Refresh content"}
+      loadingLabel={language === "vi" ? "Đang làm mới..." : "Refreshing..."}
+      onRefresh={refreshActiveArea}
+      disabled={refreshing || reordering}
+    />
+  );
+
   return <div className="space-y-6">
     <div role="tablist" aria-label={text.tabsLabel} className="flex w-full gap-1.5 overflow-x-auto rounded-xl border border-border bg-muted/50 p-1.5 sm:w-fit">
       {tabs.map(({ id, label, icon: Icon, count }) => <button key={id} type="button" role="tab" aria-selected={active === id} onClick={() => setActive(id)} className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition sm:px-4 ${active === id ? "bg-card text-primary shadow-xs" : "text-muted-foreground hover:bg-background hover:text-foreground"}`}><Icon className="size-4" />{label}{count !== undefined ? <span className={`rounded-full px-1.5 py-0.5 text-xs ${active === id ? "bg-primary/10 text-primary" : "bg-background text-muted-foreground"}`}>{count}</span> : null}</button>)}
     </div>
-    {active !== "management" ? <div className="flex justify-end"><AreaRefreshButton label={language === "vi" ? "Làm mới nội dung" : "Refresh content"} loadingLabel={language === "vi" ? "Đang làm mới..." : "Refreshing..."} onRefresh={refreshActiveArea} disabled={refreshing || reordering} /></div> : null}
     {refreshError ? <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{refreshError}</p> : null}
 
     {active === "lessons" ? <section role="tabpanel" className="space-y-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><h2 className="text-lg font-semibold">{text.lessons}</h2><p className="mt-1 text-sm text-muted-foreground">{text.lessonDescription}</p>{canManage && orderedLessons.length > 1 ? <p className="mt-2 text-xs text-muted-foreground">{text.reorderHint}</p> : null}</div>{lessonAction ? <div className="shrink-0">{lessonAction}</div> : null}</div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><h2 className="text-lg font-semibold">{text.lessons}</h2><p className="mt-1 text-sm text-muted-foreground">{text.lessonDescription}</p>{canManage && orderedLessons.length > 1 ? <p className="mt-2 text-xs text-muted-foreground">{text.reorderHint}</p> : null}</div><div className="flex shrink-0 flex-wrap gap-2">{refreshAction}{lessonAction}</div></div>
       {reordering ? <p role="status" className="text-sm text-primary">{text.savingOrder}</p> : null}
       {reorderError ? <p role="alert" className="border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{reorderError}</p> : null}
       {!orderedLessons.length ? <EmptyState mascotSrc="/assets/owlie/read.webp">{text.noLessons}</EmptyState> : <PaginatedChildren listClassName="space-y-2">
@@ -137,12 +145,12 @@ export function CourseDetailTabs({ courseId, lessons, exercises, examinations, c
     </section> : null}
 
     {active === "assignments" ? <section role="tabpanel" className="space-y-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><h2 className="text-lg font-semibold">{text.assignments}</h2><p className="mt-1 text-sm text-muted-foreground">{text.assignmentDescription}</p></div>{assignmentAction ? <div className="shrink-0">{assignmentAction}</div> : null}</div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><h2 className="text-lg font-semibold">{text.assignments}</h2><p className="mt-1 text-sm text-muted-foreground">{text.assignmentDescription}</p></div><div className="flex shrink-0 flex-wrap gap-2">{refreshAction}{assignmentAction}</div></div>
       {!currentExercises.length ? <EmptyState mascotSrc="/assets/owlie/think.webp">{text.noAssignments}</EmptyState> : <PaginatedChildren listClassName="grid gap-2">{currentExercises.map((exercise) => <Link key={exercise.id} href={`/courses/${courseId}/exercises/${exercise.id}`} className="flex min-h-20 flex-col justify-center gap-2 rounded-xl border border-border bg-card px-4 py-3 transition hover:border-primary/30 hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5"><div className="min-w-0"><span className="font-semibold">{exercise.title}</span><p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{exercise.description || text.noDescription}</p></div><span className="shrink-0 text-xs font-medium text-muted-foreground">{status(exercise.status)}{exercise.dueAt ? ` · ${text.due} ${date.format(new Date(exercise.dueAt))}` : ""}</span></Link>)}</PaginatedChildren>}
     </section> : null}
 
     {active === "examinations" ? <section role="tabpanel" className="space-y-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><h2 className="text-lg font-semibold">{text.exams}</h2><p className="mt-1 text-sm text-muted-foreground">{text.examDescription}</p><Link href="/exams" className="mt-2 inline-block text-sm font-medium text-primary hover:underline">{text.allExams}</Link></div>{examinationAction ? <div className="shrink-0 sm:max-w-sm">{examinationAction}</div> : null}</div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><h2 className="text-lg font-semibold">{text.exams}</h2><p className="mt-1 text-sm text-muted-foreground">{text.examDescription}</p><Link href="/exams" className="mt-2 inline-block text-sm font-medium text-primary hover:underline">{text.allExams}</Link></div><div className="flex shrink-0 flex-wrap gap-2 sm:max-w-sm">{refreshAction}{examinationAction}</div></div>
       {!currentExaminations.length ? <EmptyState mascotSrc="/assets/owlie/think.webp">{text.noExams}</EmptyState> : <PaginatedChildren listClassName="grid gap-2">{currentExaminations.map((exam) => <Link key={exam.id} href={`/courses/${courseId}/examinations/${exam.id}`} className="flex min-h-20 flex-col justify-center gap-2 rounded-xl border border-border bg-card px-4 py-3 transition hover:border-primary/30 hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5"><div className="min-w-0"><span className="font-semibold">{exam.title}</span><p className="mt-1 text-sm text-muted-foreground">{exam.questionCount} {text.questions} · {exam.durationMinutes} {text.minutes}</p></div><span className="shrink-0 text-xs font-medium text-muted-foreground">{status(exam.status)} · {date.format(new Date(exam.startAt))}</span></Link>)}</PaginatedChildren>}
     </section> : null}
 

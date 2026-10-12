@@ -318,59 +318,62 @@ export function ExerciseWorkspace({
       ) : null}
       {refreshError ? <p role="alert" className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">{refreshError}</p> : null}
 
-      {/* Teacher / Admin Action bar */}
-      {canManage ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
-          <div className="flex flex-wrap gap-2">
-            {exercise.status === "Draft" ? (
+      <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap gap-2">
+          {canManage ? (
+            <>
+              {exercise.status === "Draft" ? (
+                <button
+                  type="button"
+                  onClick={() => changeStatus("publish")}
+                  disabled={busy}
+                  className="inline-flex min-h-10 items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                >
+                  {text.publish}
+                </button>
+              ) : null}
+              {exercise.status === "Published" ? (
+                <button
+                  type="button"
+                  onClick={() => changeStatus("close")}
+                  disabled={busy}
+                  className="border border-destructive/40 px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/5 disabled:opacity-50"
+                >
+                  {text.close}
+                </button>
+              ) : null}
               <button
                 type="button"
-                onClick={() => changeStatus("publish")}
-                disabled={busy}
-                className="inline-flex min-h-10 items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                onClick={() => {
+                  setTitle(exercise.title);
+                  setDescription(exercise.description ?? "");
+                  setDueAt(toLocalDateTimeString(exercise.dueAt));
+                  setError(undefined);
+                  setEditing(true);
+                }}
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-border px-3.5 py-2 text-sm font-medium hover:bg-muted"
               >
-                {text.publish}
+                <Pencil className="size-4" />
+                {text.editExercise}
               </button>
-            ) : null}
-            {exercise.status === "Published" ? (
-              <button
-                type="button"
-                onClick={() => changeStatus("close")}
-                disabled={busy}
-                className="border border-destructive/40 px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/5 disabled:opacity-50"
-              >
-                {text.close}
-              </button>
-            ) : null}
+            </>
+          ) : null}
+        </div>
+        <div className="ml-auto flex flex-wrap gap-2 sm:justify-end">
+          {canManage ? (
             <button
               type="button"
-              onClick={() => {
-                setTitle(exercise.title);
-                setDescription(exercise.description ?? "");
-                setDueAt(toLocalDateTimeString(exercise.dueAt));
-                setError(undefined);
-                setEditing(true);
-              }}
-              className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-border px-3.5 py-2 text-sm font-medium hover:bg-muted"
+              onClick={handleDeleteExercise}
+              disabled={deleting || busy}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-destructive/30 px-3.5 py-2 text-sm font-medium text-destructive hover:bg-destructive/5 disabled:opacity-50"
             >
-              <Pencil className="size-4" />
-              {text.editExercise}
+              <Trash2 className="size-4" />
+              {deleting ? text.deleting : text.deleteExercise}
             </button>
-          </div>
-          <button
-            type="button"
-            onClick={handleDeleteExercise}
-            disabled={deleting || busy}
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-destructive/30 px-3.5 py-2 text-sm font-medium text-destructive hover:bg-destructive/5 disabled:opacity-50"
-          >
-            <Trash2 className="size-4" />
-            {deleting ? text.deleting : text.deleteExercise}
-          </button>
+          ) : null}
           <AreaRefreshButton label={text.refresh} loadingLabel={text.refreshing} onRefresh={refreshAssignment} disabled={busy || deleting || editing} />
         </div>
-      ) : null}
-
-      {!canManage ? <div className="flex justify-end"><AreaRefreshButton label={text.refresh} loadingLabel={text.refreshing} onRefresh={refreshAssignment} disabled={busy || editing} /></div> : null}
+      </div>
 
       <div className={canManage ? "space-y-6" : "grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.72fr)] xl:items-start"}>
       {/* Attachment Section */}

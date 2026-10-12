@@ -13,6 +13,8 @@ import { AreaRefreshButton } from "@/components/ui/area-refresh-button";
 
 const copy = {
   en: {
+    managementTitle: "Course settings",
+    managementDescription: "Refresh or update this course and its enrollment configuration.",
     closeEditor: "Close editor",
     edit: "Edit course",
     courseName: "Course name",
@@ -65,6 +67,8 @@ const copy = {
     refresh: "Refresh course and enrollments", refreshing: "Refreshing...", refreshError: "Unable to refresh course data.",
   },
   vi: {
+    managementTitle: "Thiết lập khóa học",
+    managementDescription: "Làm mới hoặc cập nhật khóa học và cấu hình đăng ký.",
     closeEditor: "Đóng trình chỉnh sửa",
     edit: "Chỉnh sửa khóa học",
     courseName: "Tên khóa học",
@@ -263,7 +267,12 @@ export function CourseManagementPanel({
       ) : null}
 
       <section className="rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-5">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">{text.managementTitle}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{text.managementDescription}</p>
+        </div>
+        <div className="flex flex-wrap gap-2 sm:justify-end">
         <AreaRefreshButton label={text.refresh} loadingLabel={text.refreshing} onRefresh={refreshCourseData} disabled={pending || editing} />
         <button
           type="button"
@@ -294,6 +303,7 @@ export function CourseManagementPanel({
             {text.restore}
           </button>
         )}
+        </div>
       </div>
 
       {editing ? (

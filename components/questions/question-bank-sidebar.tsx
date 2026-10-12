@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { CirclePlus, Search } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 import type { QuestionBankDto, QuestionDto } from "@/types/api";
 import { PaginatedChildren } from "@/components/ui/paginated-list";
 
-export function QuestionBankSidebar({ items, selectedId, onSelect, onCreate }: { items: { bank: QuestionBankDto; questions: QuestionDto[] }[]; selectedId: string; onSelect: (id: string) => void; onCreate: () => void }) {
+export function QuestionBankSidebar({ items, selectedId, onSelect, onCreate, refreshAction }: { items: { bank: QuestionBankDto; questions: QuestionDto[] }[]; selectedId: string; onSelect: (id: string) => void; onCreate: () => void; refreshAction?: ReactNode }) {
   const { language } = useLanguage();
   const isVi = language === "vi";
   const [query, setQuery] = useState("");
@@ -27,6 +27,7 @@ export function QuestionBankSidebar({ items, selectedId, onSelect, onCreate }: {
           <CirclePlus className="size-4" />
         </button>
       </div>
+      {refreshAction ? <div className="border-b border-border p-2">{refreshAction}</div> : null}
       <div className="border-b border-border p-2">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
