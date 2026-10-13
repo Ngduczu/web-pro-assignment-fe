@@ -105,7 +105,13 @@ errors.ts       ApiError (status, title, detail, isUnauthorized, isNotFound, ...
 - Lỗi HTTP ném `ApiError` đọc từ `ProblemDetails` của backend.
 - Kiểu dữ liệu nằm ở `types/api.ts`.
 
-## 6. Đăng nhập Google
+## 6. Đăng ký và xác thực email
+
+Trang `/register` gọi `POST /api/backend/auth/register`. Thành công `201` thì chuyển sang `/verify-email?email=...`. Nếu backend trả `409`, form hiển thị thông báo email đã tồn tại bằng tiếng Việt/Anh ở đầu form và ngay dưới trường email, đánh dấu `aria-invalid`, liên kết mô tả lỗi bằng `aria-describedby` và đưa focus về email. Thông báo được xóa khi người dùng sửa địa chỉ.
+
+Backend không dùng lại `register` để gửi mã cho tài khoản `Inactive`: mọi email đã tồn tại đều trả `409`. Người dùng chưa kích hoạt chọn **Kích hoạt tài khoản / Activate account** để đến `/verify-email`, sau đó dùng `POST /api/backend/auth/resend-verification`. Frontend không mô phỏng việc kiểm tra email tồn tại trước request và không tự suy diễn trạng thái tài khoản.
+
+## 7. Đăng nhập Google
 
 1. Nút Google gọi `authApi.oauthAuthorize("Google")` (qua proxy) → nhận `authorizationUrl`, điều hướng.
 2. Google → backend callback → backend redirect tới `/oauth/callback?loginCode=...` của frontend.
@@ -117,7 +123,7 @@ Liên kết Google cho tài khoản đang đăng nhập dùng `oauthLinkAuthoriz
 
 Backend link callback hiện trả JSON `{userId,provider,externalEmail}`, không redirect như login callback. Tổng quát proxy chỉ chuyển tiếp một tập header (Content-Type, Content-Disposition, Content-Length, Accept-Ranges, Location, Set-Cookie); không chuyển mọi header, đặc biệt Range/Content-Range và Cache-Control backend chưa được giữ đầy đủ.
 
-## 7. Chat realtime
+## 8. Chat realtime
 
 `createChatHubConnection()` (`lib/api/chat-realtime.ts`):
 
@@ -127,7 +133,7 @@ Backend link callback hiện trả JSON `{userId,provider,externalEmail}`, khôn
 
 Luồng trong `components/chat`: tải danh sách room/lịch sử bằng REST → `JoinRoom` → nhận `MessageReceived`, `MessageUpdated`, `MessageDeleted`. Sau reconnect cần join lại room và đồng bộ lại lịch sử gần nhất. Chi tiết sự kiện: tài liệu `docs/api/chat.md` trong repo backend.
 
-## 8. Giám sát khi làm bài thi
+## 9. Giám sát khi làm bài thi
 
 `components/examinations/use-examination-guard.ts` chạy khi attempt `InProgress` và dựa vào `security` của kỳ thi:
 
@@ -145,28 +151,28 @@ Mỗi vi phạm gọi `POST /api/backend/examination-attempts/{attemptId}/violat
 
 Luồng thi: trang kỳ thi → `start` → `/exam-attempts/{examinationId}` (yêu cầu attempt `InProgress`/`Disconnected`, nếu không sẽ chuyển về trang kỳ thi) → lưu đáp án từng câu → `submit`. Reload gọi `my-attempt` để khôi phục, `Disconnected` thì gọi `reconnect`.
 
-## 9. Import câu hỏi từ Excel
+## 10. Import câu hỏi từ Excel
 
 `lib/questions-excel.ts` + `components/questions/question-import-dialog.tsx` đọc file `.xlsx` bằng `exceljs` ở trình duyệt (tối đa 500 dòng, có tải file mẫu), chuyển thành request `multiple-choice`/`fill-in-blank` và gọi từng endpoint question-bank (xem `docs/api/question-banks.md` trong repo backend).
 
-## 10. Import tài khoản từ Excel (Admin/System)
+## 11. Import tài khoản từ Excel (Admin/System)
 
 `lib/users-excel.ts` + `components/admin/user-import-dialog.tsx` (nút "Nhập từ Excel" ở `/admin`) đọc file `.xlsx` bằng `exceljs` ở trình duyệt (tối đa 200 dòng, file ≤ 2 MB, có tải file mẫu). Cột: `Email`, `FullName`, `Password`, `Phone`, `Role` (mặc định `Student`; `Admin` chỉ khi người thao tác là System). Dòng hợp lệ được gọi lần lượt `POST /api/users` (cùng API với form "Thêm người dùng"); dòng lỗi (validate phía client hoặc backend trả lỗi, ví dụ email trùng) được hiển thị theo từng dòng và không chặn các dòng còn lại.
 
-## 11. Thêm học viên vào khóa học bằng email
+## 12. Thêm học viên vào khóa học bằng email
 
 Trang quản lý khóa học (`components/courses/course-management-panel.tsx`, mục "Yêu cầu đăng ký") có ô nhập nhiều email (phân tách bằng dấu phẩy, khoảng trắng, xuống dòng; tối đa 100). Gọi `clientApis.enrollments.addByEmail` → `POST /api/courses/{courseId}/enrollments/by-email`, hiển thị kết quả từng email (`Added`, `AlreadyAccepted`, `InvalidEmail`, `NotFound`, `NotStudent`, `Inactive`, `CourseFull`); email lỗi được giữ lại trong ô nhập để sửa. Chỉ hiện khi khóa học `Open` và chưa xóa mềm.
 
-## 12. Reset lượt thi
+## 13. Reset lượt thi
 
 Giảng viên khóa học có thể xóa lượt thi từ lịch sử kết quả; thao tác gọi `DELETE /api/examinations/{examinationId}/attempts/{attemptId}` qua `clientApis.examinations.resetAttempt`. Backend xóa lượt thi cùng đáp án/vi phạm liên quan. Học viên chỉ bắt đầu lại nếu kỳ thi vẫn Published, chưa đến hạn và enrollment còn Accepted; reset không gia hạn kỳ thi.
 
-## 13. Xuất kết quả, chỉnh đáp án và chia sẻ ngân hàng
+## 14. Xuất kết quả, chỉnh đáp án và chia sẻ ngân hàng
 
 `components/examinations/examination-results.tsx` tải lần lượt toàn bộ trang kết quả (`GET /api/examinations/{id}/attempts`, pageSize=20), tạo XLSX bằng ExcelJS trong browser và tải Blob. Không có endpoint export hoặc file xuất lưu trên server; dữ liệu có thể thay đổi giữa các trang khi kỳ thi còn diễn ra.
 
 `question-bank-workspace.tsx` gọi `PUT /api/questions/{id}` với tùy chọn options/answers/shuffleOptions để sửa đáp án, và `POST /api/question-banks/{id}/share` để sao chép cho Teacher Active khác. Admin/System chỉ đọc ngân hàng; backend trả ownerFullName/ownerEmail và hỗ trợ ownerSearch. Frontend tải bank cùng câu hỏi từng bank rồi lọc/hiển thị, nên có nhiều request khi bank lớn.
 
-## 14. Dữ liệu nền và giới hạn tổng hợp
+## 15. Dữ liệu nền và giới hạn tổng hợp
 
 `exercise-workspace.tsx` có polling 15 giây ở nhánh theo dõi bài nộp để cập nhật điểm; không phải SignalR bài tập. Dashboard, trang `/exams` và chat ghép dữ liệu từ nhiều API. Một số trang lấy riêng trang 20 courses/enrollments đầu tiên; không coi các số liệu đó là tổng toàn hệ thống. Danh sách file gọi API ở [source-map.md](source-map.md), các vấn đề chưa sửa ở [review-findings.md](review-findings.md).

@@ -30,6 +30,7 @@
 | `lib/auth/routes.ts` | roleHome hiện luôn `/` | Sau đăng nhập; trang `/` tự chọn dashboard theo role |
 | `lib/auth/validation.ts` | Schema/validation auth | Form email/password/name/phone trước khi gọi API |
 | `lib/auth/localized-message.ts` | Chọn thông báo auth theo ngôn ngữ | Hiển thị lỗi form/API |
+| `app/(auth)/register/page.tsx` | Đăng ký tài khoản; lỗi `409` hiển thị song ngữ ở form và trường email, rồi focus email | Email đã tồn tại dùng luồng kích hoạt/gửi lại mã riêng |
 | `lib/api/transport.ts` | withQuery + createRequestInit; xử lý JSON, FormData, raw body | Cả browser/server transport |
 | `lib/api/client.ts` | Fetch `/api/backend...`, no-store, same-origin; JSON/204/Blob | Client Components |
 | `lib/api/server-client.ts` | Backend URL, Bearer, cookie, retry một lần sau 401 | Server Components và BFF handlers |
