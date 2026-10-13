@@ -20,14 +20,15 @@ import { LoaderCircle, MailCheck } from "lucide-react";
 type VerifyEmailValues = z.infer<typeof verifyEmailSchema>;
 
 const copy = {
-  en: { verifiedQuestion: "Already verified?", verified: "Email verified. You can now sign in.", verifyFailure: "Unable to verify this email.", invalidCode: "The verification code is invalid or has expired. Request a new code and try again.", activationHelp: "Request a new code below if you no longer have a valid verification code for this account.", enterEmail: "Enter a valid email before requesting another code.", resent: "A new verification code has been sent. Check your inbox and enter it below.", resendFailure: "Unable to resend the code.", alreadyActive: "This account is already active. Please sign in instead.", oauthAccount: "This email uses Google sign-in and does not require an activation code.", resendCooldown: "A verification code was sent recently. Please wait a moment before requesting another one.", resendIn: "Request another code in", resending: "Sending code...", resend: "Send a new verification code", loading: "Loading verification form..." },
-  vi: { verifiedQuestion: "Bạn đã xác thực?", verified: "Email đã được xác thực. Bạn có thể đăng nhập ngay.", verifyFailure: "Không thể xác thực email này.", invalidCode: "Mã xác thực không hợp lệ hoặc đã hết hạn. Hãy yêu cầu mã mới rồi thử lại.", activationHelp: "Nếu không còn mã xác thực hợp lệ, hãy yêu cầu mã mới cho tài khoản này ở bên dưới.", enterEmail: "Vui lòng nhập email hợp lệ trước khi yêu cầu mã khác.", resent: "Mã xác thực mới đã được gửi. Hãy kiểm tra hộp thư và nhập mã bên dưới.", resendFailure: "Không thể gửi lại mã xác thực.", alreadyActive: "Tài khoản này đã được kích hoạt. Vui lòng chuyển sang đăng nhập.", oauthAccount: "Email này sử dụng đăng nhập Google và không cần mã kích hoạt.", resendCooldown: "Mã xác thực vừa được gửi gần đây. Vui lòng đợi một lát trước khi yêu cầu mã khác.", resendIn: "Có thể gửi mã khác sau", resending: "Đang gửi mã...", resend: "Gửi mã xác thực mới", loading: "Đang tải biểu mẫu xác thực..." },
+  en: { verifiedQuestion: "Already verified?", verified: "Email verified. You can now sign in.", verifyFailure: "Unable to verify this email.", invalidCode: "The verification code is invalid or has expired. Request a new code and try again.", usedCode: "This code has already been used. Request a new code to continue.", accountNotFound: "No account awaiting verification was found for this email. Check the address and try again.", codeHelp: "Codes expire after a while. If yours has expired or you can’t find the email, send a fresh code below.", activationHelp: "Request a new code below if you no longer have a valid verification code for this account.", enterEmail: "Enter a valid email before requesting another code.", resent: "A new verification code has been sent. Check your inbox and enter it below.", resendFailure: "Unable to resend the code.", alreadyActive: "This account is already active. Please sign in instead.", oauthAccount: "This email uses Google sign-in and does not require an activation code.", resendCooldown: "A verification code was sent recently. Please wait a moment before requesting another one.", resendIn: "Request another code in", resending: "Sending code...", resend: "Resend verification code", loading: "Loading verification form..." },
+  vi: { verifiedQuestion: "Bạn đã xác thực?", verified: "Email đã được xác thực. Bạn có thể đăng nhập ngay.", verifyFailure: "Không thể xác thực email này.", invalidCode: "Mã xác thực không hợp lệ hoặc đã hết hạn. Hãy gửi mã mới rồi thử lại.", usedCode: "Mã này đã được sử dụng. Hãy gửi mã mới để tiếp tục.", accountNotFound: "Không tìm thấy tài khoản đang chờ xác thực với email này. Vui lòng kiểm tra lại địa chỉ.", codeHelp: "Mã sẽ hết hạn sau một thời gian. Nếu mã đã hết hạn hoặc bạn không tìm thấy email, hãy gửi mã mới ở bên dưới.", activationHelp: "Nếu không còn mã xác thực hợp lệ, hãy yêu cầu mã mới cho tài khoản này ở bên dưới.", enterEmail: "Vui lòng nhập email hợp lệ trước khi yêu cầu mã khác.", resent: "Mã xác thực mới đã được gửi. Hãy kiểm tra hộp thư và nhập mã bên dưới.", resendFailure: "Không thể gửi lại mã xác thực.", alreadyActive: "Tài khoản này đã được kích hoạt. Vui lòng chuyển sang đăng nhập.", oauthAccount: "Email này sử dụng đăng nhập Google và không cần mã kích hoạt.", resendCooldown: "Mã xác thực vừa được gửi gần đây. Vui lòng đợi một lát trước khi yêu cầu mã khác.", resendIn: "Có thể gửi mã khác sau", resending: "Đang gửi mã...", resend: "Gửi lại mã xác thực", loading: "Đang tải biểu mẫu xác thực..." },
 };
 
 const ACTIVE_ACCOUNT_DETAIL = "Only inactive accounts can request a verification code.";
 const VERIFY_ACTIVE_ACCOUNT_DETAIL = "Only inactive accounts can be verified.";
 const OAUTH_ACCOUNT_DETAIL = "OAuth accounts do not require email verification.";
 const INVALID_CODE_DETAIL = "Verification code is invalid or expired.";
+const USED_CODE_DETAIL = "Verification code has already been used.";
 const RESEND_COOLDOWN_DETAIL = "Please wait before requesting another verification code.";
 
 function VerifyEmailForm() {
@@ -67,7 +68,9 @@ function VerifyEmailForm() {
     } catch (error) {
       if (error instanceof ApiError && error.detail === VERIFY_ACTIVE_ACCOUNT_DETAIL) setServerError(text.alreadyActive);
       else if (error instanceof ApiError && error.detail === OAUTH_ACCOUNT_DETAIL) setServerError(text.oauthAccount);
-      else if (error instanceof ApiError && error.detail === INVALID_CODE_DETAIL) { setServerError(text.invalidCode); setFocus("verificationCode"); }
+      else if (error instanceof ApiError && error.detail === USED_CODE_DETAIL) { setServerError(text.usedCode); setFocus("verificationCode"); }
+      else if (error instanceof ApiError && (error.status === 400 || error.detail === INVALID_CODE_DETAIL)) { setServerError(text.invalidCode); setFocus("verificationCode"); }
+      else if (error instanceof ApiError && error.isNotFound) { setServerError(text.accountNotFound); setFocus("email"); }
       else setServerError(language === "en" && error instanceof ApiError ? error.detail : text.verifyFailure);
     }
   }
@@ -88,6 +91,7 @@ function VerifyEmailForm() {
       if (error instanceof ApiError && error.detail === ACTIVE_ACCOUNT_DETAIL) setServerError(text.alreadyActive);
       else if (error instanceof ApiError && error.detail === OAUTH_ACCOUNT_DETAIL) setServerError(text.oauthAccount);
       else if (error instanceof ApiError && error.detail === RESEND_COOLDOWN_DETAIL) setServerError(text.resendCooldown);
+      else if (error instanceof ApiError && error.isNotFound) setServerError(text.accountNotFound);
       else setServerError(language === "en" && error instanceof ApiError ? error.detail : text.resendFailure);
     } finally {
       setIsResending(false);
@@ -131,7 +135,10 @@ function VerifyEmailForm() {
           {errors.verificationCode ? <p id="verificationCode-error" className="text-xs text-destructive">{localizeAuthMessage(language, errors.verificationCode.message)}</p> : null}
         </div>
         <AuthSubmit loading={isSubmitting} disabled={isResending}>{t("verifyEmail")}</AuthSubmit>
-        <button type="button" disabled={cooldown > 0 || isSubmitting || isResending} onClick={resend} className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium transition hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-55">{isResending ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <MailCheck className="size-4" aria-hidden="true" />}{isResending ? text.resending : cooldown > 0 ? `${text.resendIn} ${cooldown}s` : text.resend}</button>
+        <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-4">
+          <p className="text-sm leading-6 text-muted-foreground">{text.codeHelp}</p>
+          <button type="button" disabled={cooldown > 0 || isSubmitting || isResending} onClick={resend} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-primary/30 bg-background px-4 py-2 text-sm font-semibold text-primary transition hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-55">{isResending ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <MailCheck className="size-4" aria-hidden="true" />}{isResending ? text.resending : cooldown > 0 ? `${text.resendIn} ${cooldown}s` : text.resend}</button>
+        </div>
       </form>
     </AuthShell>
   );
