@@ -59,7 +59,7 @@ export type ChatUserSearchDto = { id: string; email: string; fullName: string; a
 export type CreateCourseRequest = { name: string; description?: string | null; teacherId: string; maxStudents: number; status?: CourseStatus };
 export type UpdateCourseRequest = { name: string; description?: string | null; maxStudents: number; status: CourseStatus };
 export type CourseQuery = { search?: string; status?: CourseStatus; teacherId?: string; includeDeleted?: boolean; page?: number; pageSize?: number };
-export type CourseDto = { id: string; name: string; description: string | null; teacherId: string; maxStudents: number; acceptedStudentCount: number; status: CourseStatus; createdAt: string; modifiedAt: string; deletedAt: string | null };
+export type CourseDto = { id: string; name: string; description: string | null; teacherId: string; teacherFullName: string; maxStudents: number; acceptedStudentCount: number; status: CourseStatus; createdAt: string; modifiedAt: string; deletedAt: string | null };
 
 export type EnrollmentQuery = { page?: number; pageSize?: number };
 export type AddStudentResultStatus = "Added" | "AlreadyAccepted" | "InvalidEmail" | "NotFound" | "NotStudent" | "Inactive" | "CourseFull";

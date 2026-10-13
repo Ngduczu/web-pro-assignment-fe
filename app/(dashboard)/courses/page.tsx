@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { ArrowUpRight, BookOpen, CalendarDays, Search, Users } from "lucide-react";
+import { ArrowUpRight, BookOpen, CalendarDays, GraduationCap, Search, Users } from "lucide-react";
 import { requireAuth } from "@/lib/auth/session";
 import { serverApis } from "@/lib/api/server-apis";
 import type { CourseDto, CourseStatus, EnrollmentDto, Role, UserProfileDto } from "@/types/api";
@@ -152,6 +152,14 @@ function CourseCard({
         <p className="mt-4 line-clamp-3 min-h-18 text-sm leading-6 text-muted-foreground">
           {course.description || translate(language, "No description provided.")}
         </p>
+
+        <div className="mb-4 flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+          <GraduationCap className="size-4 shrink-0 text-primary/80" aria-hidden="true" />
+          <span className="shrink-0">{translate(language, "Course teacher")}:</span>
+          <span className="truncate font-medium text-foreground" title={course.teacherFullName}>
+            {course.teacherFullName}
+          </span>
+        </div>
 
         <div className="mt-auto grid grid-cols-2 gap-3 border-t border-border pt-4">
           <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
