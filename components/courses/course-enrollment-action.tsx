@@ -13,7 +13,15 @@ const copy = {
   vi: { enrolled: "Đã tham gia", cancelling: "Đang hủy...", cancel: "Hủy yêu cầu", closed: "Đã đóng đăng ký", requesting: "Đang gửi...", join: "Đăng ký khóa học", requestError: "Không thể gửi yêu cầu đăng ký.", cancelError: "Không thể hủy yêu cầu đăng ký." },
 };
 
-export function CourseEnrollmentAction({ courseId, enrollment, courseStatus, compact = false, onDarkBackground = false }: { courseId: string; enrollment?: EnrollmentDto; courseStatus: CourseStatus; compact?: boolean; onDarkBackground?: boolean }) {
+type CourseEnrollmentActionProps = { courseId: string; enrollment?: EnrollmentDto; courseStatus: CourseStatus; compact?: boolean; onDarkBackground?: boolean };
+
+export function CourseEnrollmentAction(props: CourseEnrollmentActionProps) {
+  const { courseId, enrollment } = props;
+  const enrollmentVersion = enrollment ? `${enrollment.id}:${enrollment.status}:${enrollment.modifiedAt}` : "none";
+  return <CourseEnrollmentActionState key={`${courseId}:${enrollmentVersion}`} {...props} />;
+}
+
+function CourseEnrollmentActionState({ courseId, enrollment, courseStatus, compact = false, onDarkBackground = false }: CourseEnrollmentActionProps) {
   const router = useRouter();
   const { language } = useLanguage();
   const text = copy[language];
