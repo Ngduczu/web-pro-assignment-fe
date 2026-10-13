@@ -16,19 +16,25 @@ import { useRouter } from "next/navigation";
 import { useLanguage } from "@/lib/i18n";
 import { localizeAuthMessage } from "@/lib/auth/localized-message";
 import { RequiredMark } from "@/components/ui/form-field-feedback";
-import { MailCheck } from "lucide-react";
+import { LogIn, MailCheck } from "lucide-react";
 
 type RegisterValues = z.infer<typeof registerSchema>;
 
 const copy = {
   en: {
     sent: "Verification code sent. It expires at",
-    emailExists: "This email is already registered. Please sign in or use another email.",
+    emailExists: "This email is already registered.",
+    activationHelp: "If you have not activated this account, continue with this email to request a new verification code.",
+    continueActivation: "Continue account activation",
+    signInInstead: "Sign in instead",
     failure: "Unable to create your account.",
   },
   vi: {
     sent: "Mã xác thực đã được gửi. Mã hết hạn lúc",
-    emailExists: "Email này đã được đăng ký. Vui lòng đăng nhập hoặc sử dụng email khác.",
+    emailExists: "Email này đã được đăng ký.",
+    activationHelp: "Nếu tài khoản chưa được kích hoạt, hãy tiếp tục với email này để nhận mã xác thực mới.",
+    continueActivation: "Tiếp tục kích hoạt tài khoản",
+    signInInstead: "Chuyển sang đăng nhập",
     failure: "Không thể tạo tài khoản của bạn.",
   },
 };
@@ -36,11 +42,12 @@ const copy = {
 export default function RegisterPage() {
   const [serverError, setServerError] = useState<string>();
   const [success, setSuccess] = useState<string>();
+  const [activationEmail, setActivationEmail] = useState<string>();
   const router = useRouter();
   const { language, t } = useLanguage();
   const text = copy[language];
   const { register, handleSubmit, control, clearErrors, setError, setFocus, formState: { errors, isSubmitting } } = useForm<RegisterValues>({ resolver: zodResolver(registerSchema), defaultValues: { fullName: "", email: "", phone: "", password: "", passwordConfirm: "" } });
-  const emailField = register("email", { onChange: () => { clearErrors("email"); setServerError(undefined); } });
+  const emailField = register("email", { onChange: () => { clearErrors("email"); setServerError(undefined); setActivationEmail(undefined); } });
   const passwordField = register("password");
   const confirmField = register("passwordConfirm");
   const password = useWatch({ control, name: "password" });
@@ -48,6 +55,7 @@ export default function RegisterPage() {
 
   async function onSubmit(values: RegisterValues) {
     setServerError(undefined);
+    setActivationEmail(undefined);
     clearErrors("email");
     try {
       const result = await clientApis.auth.register({ ...values, phone: values.phone || null });
@@ -56,6 +64,7 @@ export default function RegisterPage() {
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
         setServerError(text.emailExists);
+        setActivationEmail(values.email.trim());
         setError("email", { type: "server", message: text.emailExists });
         setFocus("email");
         return;
@@ -69,6 +78,15 @@ export default function RegisterPage() {
     <AuthShell title={t("registerTitle")} description={t("registerDescription")} mascotSrc="/assets/owlie/cheer.webp" footer={<span>{t("alreadyHaveAccount")} <Link href="/login" className="font-medium text-primary hover:underline">{t("signIn")}</Link></span>}>
       <form className="space-y-5" onSubmit={handleSubmit(onSubmit)} noValidate>
         <FormMessage message={serverError} />
+        {activationEmail ? (
+          <section aria-label={text.continueActivation} className="space-y-3 rounded-xl border border-primary/25 bg-primary/5 p-4">
+            <p className="text-sm leading-6 text-muted-foreground">{text.activationHelp}</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Link href={`/verify-email?email=${encodeURIComponent(activationEmail)}&activation=1`} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-center text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"><MailCheck className="size-4 shrink-0" aria-hidden="true" />{text.continueActivation}</Link>
+              <Link href="/login" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-center text-sm font-medium transition hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"><LogIn className="size-4 shrink-0" aria-hidden="true" />{text.signInInstead}</Link>
+            </div>
+          </section>
+        ) : null}
         <FormMessage message={success} tone="success" />
         <div className="space-y-2"><label htmlFor="email" className="text-sm font-medium">{t("email")}<RequiredMark /></label><input id="email" type="email" autoComplete="email" aria-invalid={Boolean(errors.email)} aria-describedby={errors.email ? "register-email-error" : undefined} {...emailField} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring aria-invalid:border-destructive" />{errors.email ? <p id="register-email-error" className="text-xs text-destructive">{localizeAuthMessage(language, errors.email.message)}</p> : null}</div>
         <div className="space-y-2"><label htmlFor="fullName" className="text-sm font-medium">{t("fullName")}<RequiredMark /></label><input id="fullName" autoComplete="name" maxLength={100} {...register("fullName")} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />{errors.fullName ? <p className="text-xs text-destructive">{localizeAuthMessage(language, errors.fullName.message)}</p> : null}</div>

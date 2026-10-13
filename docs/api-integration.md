@@ -107,9 +107,9 @@ errors.ts       ApiError (status, title, detail, isUnauthorized, isNotFound, ...
 
 ## 6. Đăng ký và xác thực email
 
-Trang `/register` gọi `POST /api/backend/auth/register`. Thành công `201` thì chuyển sang `/verify-email?email=...`. Nếu backend trả `409`, form hiển thị thông báo email đã tồn tại bằng tiếng Việt/Anh ở đầu form và ngay dưới trường email, đánh dấu `aria-invalid`, liên kết mô tả lỗi bằng `aria-describedby` và đưa focus về email. Thông báo được xóa khi người dùng sửa địa chỉ.
+Trang `/register` gọi `POST /api/backend/auth/register`. Thành công `201` thì chuyển sang `/verify-email?email=...`. Nếu backend trả `409`, form hiển thị thông báo email đã tồn tại bằng tiếng Việt/Anh ở đầu form và ngay dưới trường email, đánh dấu `aria-invalid`, liên kết mô tả lỗi bằng `aria-describedby` và đưa focus về email. Cảnh báo cung cấp hai hành động **Tiếp tục kích hoạt tài khoản** (chuyển email sang trang xác thực) và **Chuyển sang đăng nhập**; thông báo được xóa khi người dùng sửa địa chỉ.
 
-Backend không dùng lại `register` để gửi mã cho tài khoản `Inactive`: mọi email đã tồn tại đều trả `409`. Người dùng chưa kích hoạt chọn **Kích hoạt tài khoản / Activate account** để đến `/verify-email`, sau đó dùng `POST /api/backend/auth/resend-verification`. Frontend không mô phỏng việc kiểm tra email tồn tại trước request và không tự suy diễn trạng thái tài khoản.
+Backend không dùng lại `register` để gửi mã cho tài khoản `Inactive`: mọi email đã tồn tại đều trả `409`. Người dùng chưa kích hoạt chọn **Kích hoạt tài khoản / Activate account** để đến `/verify-email`, sau đó dùng `POST /api/backend/auth/resend-verification`. Trang xác thực điền sẵn email từ query, validate email trước khi gửi, có trạng thái gửi độc lập, cooldown 60 giây sau khi gửi thành công, xóa mã cũ và focus ô mã. Các lỗi tài khoản đã active, tài khoản Google, mã sai/hết hạn và resend quá sớm được bản địa hóa. Frontend không tự gửi mã khi tải trang, không mô phỏng việc kiểm tra email tồn tại trước request và không tự suy diễn trạng thái tài khoản.
 
 ## 7. Đăng nhập Google
 
