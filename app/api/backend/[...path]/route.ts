@@ -12,6 +12,14 @@ async function proxy(request: Request, context: RouteContext) {
   const url = new URL(request.url);
   const backendPath = `/${path}${url.search}`;
   const isOAuthCallback = /^auth\/oauth\/[^/]+\/callback$/i.test(path);
+  const oauthError = isOAuthCallback ? url.searchParams.get("error") : null;
+  if (oauthError) {
+    const callbackUrl = new URL("/oauth/callback", url);
+    callbackUrl.searchParams.set("error", oauthError);
+    const redirectResponse = NextResponse.redirect(callbackUrl);
+    redirectResponse.headers.set("Cache-Control", "no-store");
+    return redirectResponse;
+  }
   const method = request.method as "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   const headers = new Headers();
   const contentType = request.headers.get("content-type");
